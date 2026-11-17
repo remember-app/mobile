@@ -242,47 +242,49 @@ export default function SongsScreen() {
       }
     >
       {songs.items.length > 0 ? (
-        <Card clip>
-          {songs.items.map((song) => (
-            <SwipeRow key={song.id} tone="danger" icon={Trash2} onAction={() => remove(song)}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={song.name}
-                onPress={() => open(song)}
-                style={styles.row}
-              >
-                <View style={styles.art}>
-                  {song.coverUrl ? (
-                    <Image
-                      source={song.coverUrl}
-                      scope="music"
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : (
-                    <Music size={18} color={color.muted} />
-                  )}
-                </View>
-                <View style={styles.words}>
-                  <Text role="row" numberOfLines={1}>
-                    {song.name}
-                  </Text>
-                  <Text role="meta" tone="muted" numberOfLines={1}>
-                    {song.author}
-                  </Text>
-                </View>
-                <IconButton
-                  icon={playingId === song.id ? Pause : Play}
-                  label={playingId === song.id ? t('songs.pause') : t('songs.play')}
-                  tone="ghost"
-                  size={40}
-                  glyph={{ size: 18, filled: true }}
-                  onPress={() => void toggle(song)}
-                />
-              </Pressable>
-            </SwipeRow>
-          ))}
+        <Card clip style={styles.card}>
+          <View style={styles.list}>
+            {songs.items.map((song) => (
+              <SwipeRow key={song.id} tone="danger" icon={Trash2} onAction={() => remove(song)}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={song.name}
+                  onPress={() => open(song)}
+                  style={styles.row}
+                >
+                  <View style={styles.art}>
+                    {song.coverUrl ? (
+                      <Image
+                        source={song.coverUrl}
+                        scope="music"
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <Music size={18} color={color.muted} />
+                    )}
+                  </View>
+                  <View style={styles.words}>
+                    <Text role="row" numberOfLines={1}>
+                      {song.name}
+                    </Text>
+                    <Text role="meta" tone="muted" numberOfLines={1}>
+                      {song.author}
+                    </Text>
+                  </View>
+                  <IconButton
+                    icon={playingId === song.id ? Pause : Play}
+                    label={playingId === song.id ? t('songs.pause') : t('songs.play')}
+                    tone="ghost"
+                    size={40}
+                    glyph={{ size: 18, filled: true }}
+                    onPress={() => void toggle(song)}
+                  />
+                </Pressable>
+              </SwipeRow>
+            ))}
+          </View>
         </Card>
       ) : null}
 
@@ -366,12 +368,16 @@ export default function SongsScreen() {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    card: {
+      padding: space.s4,
+    },
+    list: {
+      gap: space.s2,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      paddingHorizontal: space.s4,
-      paddingVertical: space.s3,
       backgroundColor: color.surface,
     },
     art: {
