@@ -1,3 +1,4 @@
+import { setAudioModeAsync } from 'expo-audio';
 import { loadAvatar } from '@/functionality/account/avatar';
 import { onSignOut, restoreSession, sessionState } from '@/functionality/auth/session';
 import { hydrateContacts, loadContacts } from '@/functionality/contact/contacts';
@@ -59,6 +60,7 @@ export function hydrateProject(projectId: ProjectId): void {
 
 export async function startApp(): Promise<void> {
   hydrateGlobal();
+  void setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
   await restoreSession();
   const session = sessionState();
   if ('token' in session) {

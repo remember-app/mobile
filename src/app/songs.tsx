@@ -58,13 +58,18 @@ export default function SongsScreen() {
   const [coverBusy, setCoverBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const player = useAudioPlayer();
+  const [source, setSource] = useState<string | null>(null);
+  const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
   const [playingId, setPlayingId] = useState<SongId | null>(null);
 
   useEffect(() => {
     void loadOwnSongs().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (playingId !== null && status.isLoaded) player.play();
+  }, [playingId, status.isLoaded, player]);
 
   useEffect(() => {
     if (status.didJustFinish) setPlayingId(null);
@@ -145,8 +150,12 @@ export default function SongsScreen() {
     }
     try {
       const url = await songUrl(song.id);
-      player.replace(url);
-      player.play();
+      if (source === url) {
+        void player.seekTo(0);
+        setPlayingId(song.id);
+        return;
+      }
+      setSource(url);
       setPlayingId(song.id);
     } catch {
       setPlayingId(null);
@@ -268,6 +277,7 @@ export default function SongsScreen() {
                   label={playingId === song.id ? t('songs.pause') : t('songs.play')}
                   tone="ghost"
                   size={40}
+                  glyph={{ size: 18, filled: true }}
                   onPress={() => void toggle(song)}
                 />
               </Pressable>
@@ -360,14 +370,14 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      minHeight: 56,
       paddingHorizontal: space.s4,
+      paddingVertical: space.s4,
       backgroundColor: color.surface,
     },
     art: {
       width: 44,
       height: 44,
-      borderRadius: radius.thumb,
+      borderRadius: radius.queue,
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
@@ -385,7 +395,7 @@ const useStyles = themed(({ color }) =>
       position: 'relative',
       width: 72,
       height: 72,
-      borderRadius: radius.cover,
+      borderRadius: radius.cell,
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
