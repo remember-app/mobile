@@ -120,6 +120,7 @@ export const en = {
     name: 'Title',
     author: 'Artist',
     changeCover: 'Change cover',
+    chooseFile: 'Choose file',
     play: 'Play',
     pause: 'Pause',
     uploading: 'Uploading track…',

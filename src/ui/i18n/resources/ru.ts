@@ -123,6 +123,7 @@ export const ru: typeof en = {
     name: 'Название',
     author: 'Автор',
     changeCover: 'Изменить обложку',
+    chooseFile: 'Выбрать файл',
     play: 'Слушать',
     pause: 'Пауза',
     uploading: 'Загружаем трек…',
