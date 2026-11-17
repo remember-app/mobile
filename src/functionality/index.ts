@@ -215,6 +215,8 @@ export {
   updateOwnSong,
 } from './song/mine';
 export {
+  attachProjectSong,
+  detachProjectSong,
   hydrateLibrarySongs,
   hydrateProjectSongs,
   librarySongsState,

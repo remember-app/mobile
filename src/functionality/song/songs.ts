@@ -1,6 +1,12 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
-import { getSong, listLibrarySongs, listProjectSongs } from '@/integrations/api';
+import {
+  attachSong as apiAttachSong,
+  detachSong as apiDetachSong,
+  getSong,
+  listLibrarySongs,
+  listProjectSongs,
+} from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import type { Song } from '@/models';
 import type { ProjectId, SongId } from '@/types/id';
@@ -159,6 +165,16 @@ export function clearSongs(): void {
   library = EMPTY;
   removeCache(libraryCache);
   notify();
+}
+
+export async function attachProjectSong(projectId: ProjectId, songId: SongId): Promise<void> {
+  await apiAttachSong(token(), projectId, songId);
+  await loadProjectSongs(projectId, true);
+}
+
+export async function detachProjectSong(projectId: ProjectId, songId: SongId): Promise<void> {
+  await apiDetachSong(token(), projectId, songId);
+  await loadProjectSongs(projectId, true);
 }
 
 export async function songUrl(songId: SongId): Promise<string> {

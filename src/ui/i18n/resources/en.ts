@@ -203,6 +203,12 @@ export const en = {
     shareStorage: 'Share storage',
     shareTokens: 'Share tokens',
   },
+  music: {
+    add: 'Add music',
+    none: 'No music yet',
+    new: 'Add music',
+    empty: 'Add songs in your profile first',
+  },
   labels: {
     title: 'Label',
     notFound: 'Label not found',

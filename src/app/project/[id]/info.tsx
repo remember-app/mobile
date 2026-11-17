@@ -8,6 +8,7 @@ import type { ProjectId } from '@/types/id';
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
+import { ProjectMusic } from '@/ui/components/project-music';
 import { MemberSheet } from '@/ui/components/member-sheet';
 import { confirmAction } from '@/ui/confirm';
 import { number } from '@/ui/format';
@@ -148,6 +149,8 @@ export default function ProjectInfoScreen() {
       />
 
       <LabelsManager projectId={projectId} />
+
+      <ProjectMusic projectId={projectId} />
 
       <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
 

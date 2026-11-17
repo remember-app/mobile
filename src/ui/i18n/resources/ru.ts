@@ -206,6 +206,12 @@ export const ru: typeof en = {
     shareStorage: 'Поделиться хранилищем',
     shareTokens: 'Поделиться токенами',
   },
+  music: {
+    add: 'Добавить музыку',
+    none: 'Музыки пока нет',
+    new: 'Добавить музыку',
+    empty: 'Сначала добавьте песни в профиле',
+  },
   labels: {
     title: 'Лейбл',
     notFound: 'Лейбл не найден',
