@@ -31,7 +31,7 @@ import {
 } from '@/functionality';
 import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
-import { CropImageModal } from '@/ui/components/crop-image';
+import { CropImage } from '@/ui/components/crop-image';
 import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
@@ -322,73 +322,83 @@ export default function ProfileScreen() {
 
       <BottomSheet
         visible={editing}
+        size={crop ? 'full' : 'auto'}
         onClose={() => {
           setEditing(false);
+          setCrop(null);
           link.clear();
         }}
       >
-        {link.failed !== null ? <LinkBanner link={link.failed} /> : null}
-        <View style={styles.avatarWrap}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.changePhoto')}
-            onPress={() => void pickAvatar()}
-            style={styles.avatarEdit}
-          >
-            <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
-            <View
-              pointerEvents="none"
-              style={[
-                styles.avatarBadge,
-                styles.avatarBadgeRight,
-                { backgroundColor: color.paper, borderColor: color.surface },
-              ]}
-            >
-              <Camera size={14} color={color.ink} />
+        {crop ? (
+          <CropImage
+            uri={crop}
+            onCancel={() => setCrop(null)}
+            onDone={(uri) => {
+              setCrop(null);
+              void uploadAvatar(uri, 'avatar.jpg').catch(() => undefined);
+            }}
+          />
+        ) : (
+          <>
+            {link.failed !== null ? <LinkBanner link={link.failed} /> : null}
+            <View style={styles.avatarWrap}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.changePhoto')}
+                onPress={() => void pickAvatar()}
+                style={styles.avatarEdit}
+              >
+                <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.avatarBadge,
+                    styles.avatarBadgeRight,
+                    { backgroundColor: color.paper, borderColor: color.surface },
+                  ]}
+                >
+                  <Camera size={14} color={color.ink} />
+                </View>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.pasteImage')}
+                onPress={() => void link.paste()}
+                style={[
+                  styles.avatarBadge,
+                  styles.avatarBadgeLeft,
+                  { backgroundColor: color.paper, borderColor: color.surface },
+                ]}
+              >
+                {link.busy ? (
+                  <CircularSpinner size={14} />
+                ) : (
+                  <Clipboard size={14} color={color.ink} />
+                )}
+              </Pressable>
             </View>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.pasteImage')}
-            onPress={() => void link.paste()}
-            style={[
-              styles.avatarBadge,
-              styles.avatarBadgeLeft,
-              { backgroundColor: color.paper, borderColor: color.surface },
-            ]}
-          >
-            {link.busy ? <CircularSpinner size={14} /> : <Clipboard size={14} color={color.ink} />}
-          </Pressable>
-        </View>
-        <View style={styles.form}>
-          <Field
-            label={t('profile.name')}
-            value={name}
-            onChangeText={setName}
-            placeholder={t('profile.name')}
-            autoCapitalize="words"
-          />
-          <Field
-            label={t('profile.nick')}
-            value={username}
-            onChangeText={setUsername}
-            placeholder={t('profile.nick')}
-            prefix="@"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Button label={t('action.save')} variant="primary" disabled={!valid} onPress={save} />
-        </View>
+            <View style={styles.form}>
+              <Field
+                label={t('profile.name')}
+                value={name}
+                onChangeText={setName}
+                placeholder={t('profile.name')}
+                autoCapitalize="words"
+              />
+              <Field
+                label={t('profile.nick')}
+                value={username}
+                onChangeText={setUsername}
+                placeholder={t('profile.nick')}
+                prefix="@"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Button label={t('action.save')} variant="primary" disabled={!valid} onPress={save} />
+            </View>
+          </>
+        )}
       </BottomSheet>
-
-      <CropImageModal
-        uri={crop}
-        onCancel={() => setCrop(null)}
-        onDone={(uri) => {
-          setCrop(null);
-          void uploadAvatar(uri, 'avatar.jpg').catch(() => undefined);
-        }}
-      />
     </Board>
   );
 }

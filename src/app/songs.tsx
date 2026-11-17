@@ -15,7 +15,7 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
-import { CropImageModal } from '@/ui/components/crop-image';
+import { CropImage } from '@/ui/components/crop-image';
 import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
@@ -84,6 +84,7 @@ export default function SongsScreen() {
     setCoverBusy(false);
     setSaving(false);
     setError(null);
+    setCrop(null);
     link.clear();
   };
 
@@ -285,8 +286,17 @@ export default function SongsScreen() {
           </Card>
         ) : null}
 
-        <BottomSheet visible={sheetOpen} onClose={close}>
-          {uploading ? (
+        <BottomSheet visible={sheetOpen} size={crop ? 'full' : 'auto'} onClose={close}>
+          {crop ? (
+            <CropImage
+              uri={crop}
+              onCancel={() => setCrop(null)}
+              onDone={(uri) => {
+                setCrop(null);
+                void applyCover(uri);
+              }}
+            />
+          ) : uploading ? (
             <View style={styles.uploading}>
               <CircularSpinner size={20} />
               <Text role="row" tone="muted">
@@ -384,15 +394,6 @@ export default function SongsScreen() {
       </Board>
 
       <MiniPlayer player={player} />
-
-      <CropImageModal
-        uri={crop}
-        onCancel={() => setCrop(null)}
-        onDone={(uri) => {
-          setCrop(null);
-          void applyCover(uri);
-        }}
-      />
     </View>
   );
 }

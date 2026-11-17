@@ -1,10 +1,9 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Image as NativeImage, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image as NativeImage, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
@@ -12,22 +11,21 @@ import { radius, space, themed } from '@/ui/theme';
 
 type Size = { width: number; height: number };
 
-export function CropImageModal({
+export function CropImage({
   uri,
   onCancel,
   onDone,
 }: {
-  uri: string | null;
+  uri: string;
   onCancel: () => void;
   onDone: (uri: string) => void;
 }) {
   const { t } = useTranslation();
   const styles = useStyles();
-  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [size, setSize] = useState<Size | null>(null);
   const [busy, setBusy] = useState(false);
-  const side = Math.min(width - space.s5 * 2, height * 0.6);
+  const side = Math.min(width - space.s5 * 2, height * 0.5);
   const scale = size === null ? 1 : Math.max(side / size.width, side / size.height);
   const shown =
     size === null
@@ -44,10 +42,6 @@ export function CropImageModal({
   cancel.current = onCancel;
 
   useEffect(() => {
-    if (uri === null) {
-      setSize(null);
-      return;
-    }
     let live = true;
     NativeImage.getSize(
       uri,
@@ -84,7 +78,7 @@ export function CropImageModal({
   }));
 
   const confirm = async () => {
-    if (uri === null || size === null) return;
+    if (size === null) return;
     setBusy(true);
     try {
       const originX = Math.max(0, Math.round(-tx.value / scale));
@@ -105,37 +99,30 @@ export function CropImageModal({
   };
 
   return (
-    <Modal
-      visible={uri !== null}
-      animationType="fade"
-      onRequestClose={onCancel}
-      statusBarTranslucent
-    >
-      <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.stage}>
-          <View style={[styles.frame, { width: side, height: side }]}>
-            {size === null ? (
-              <CircularSpinner size={28} />
-            ) : (
-              <GestureDetector gesture={pan}>
-                <Animated.View style={[styles.canvas, shown, body]}>
-                  <NativeImage source={{ uri: uri ?? undefined }} style={styles.image} />
-                </Animated.View>
-              </GestureDetector>
-            )}
-          </View>
-        </View>
-        <View style={styles.actions}>
-          <Button label={t('action.cancel')} variant="secondary" onPress={onCancel} />
-          <Button
-            label={t('action.done')}
-            variant="primary"
-            disabled={size === null || busy}
-            onPress={() => void confirm()}
-          />
+    <View style={styles.root}>
+      <View style={styles.stage}>
+        <View style={[styles.frame, { width: side, height: side }]}>
+          {size === null ? (
+            <CircularSpinner size={28} />
+          ) : (
+            <GestureDetector gesture={pan}>
+              <Animated.View style={[styles.canvas, shown, body]}>
+                <NativeImage source={{ uri }} style={styles.image} />
+              </Animated.View>
+            </GestureDetector>
+          )}
         </View>
       </View>
-    </Modal>
+      <View style={styles.actions}>
+        <Button label={t('action.cancel')} variant="secondary" onPress={onCancel} />
+        <Button
+          label={t('action.done')}
+          variant="primary"
+          disabled={size === null || busy}
+          onPress={() => void confirm()}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -143,7 +130,6 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: color.ink,
       justifyContent: 'space-between',
     },
     stage: {
@@ -170,7 +156,6 @@ const useStyles = themed(({ color }) =>
     actions: {
       flexDirection: 'row',
       gap: space.s3,
-      paddingHorizontal: space.s5,
       paddingTop: space.s4,
     },
   }),
