@@ -25,6 +25,14 @@ export function dateRange(start: Date, end: Date | null): string {
   return `${dayMonth(start)} — ${dayMonth(end)}`;
 }
 
+export function numericDay(value: Date): string {
+  return new Intl.DateTimeFormat(locale(), {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(value);
+}
+
 export function fullDay(value: Date): string {
   return new Intl.DateTimeFormat(locale(), {
     day: 'numeric',

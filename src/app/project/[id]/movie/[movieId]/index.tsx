@@ -25,7 +25,7 @@ import {
   MusicCard,
   PromptCard,
 } from '@/ui/components/montage-order/blocks';
-import { duration, fullDay } from '@/ui/format';
+import { duration, numericDay } from '@/ui/format';
 import { useGallery, useMembers, useMovies } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Avatar } from '@/ui/kit/avatar';
@@ -128,8 +128,8 @@ export default function MovieScreen() {
           },
         ]
       : []),
-    { icon: Calendar, value: fullDay(movie.createdAt) },
-    ...(video ? [{ icon: HardDrive, value: (video.bytes / 1024 ** 3).toFixed(1) }] : []),
+    { icon: Calendar, value: numericDay(movie.createdAt) },
+    ...(video ? [{ icon: HardDrive, value: (video.bytes / 1024 ** 3).toFixed(2) }] : []),
   ];
   const openFrames = () =>
     router.navigate({
@@ -178,7 +178,7 @@ export default function MovieScreen() {
                 ref={view}
                 player={player}
                 style={StyleSheet.absoluteFill}
-                contentFit="cover"
+                contentFit="contain"
                 nativeControls
                 onFullscreenExit={() => player.pause()}
               />
@@ -216,7 +216,11 @@ export default function MovieScreen() {
 
         <View style={styles.body}>
           <Facts items={facts} />
-          <MusicCard songs={music} group={projectId} onPress={openMusic} />
+          <MusicCard
+            songs={music}
+            group={projectId}
+            onPress={music.length > 1 ? openMusic : undefined}
+          />
           <PromptCard prompt={settings?.prompt ?? null} onOpen={() => setPromptOpen(true)} />
           {ids.length > 0 ? (
             <FramesCard frames={frameUrls} group={projectId} onPress={openFrames} />
@@ -245,7 +249,7 @@ const styles = StyleSheet.create({
   poster: {
     aspectRatio: 16 / 9,
     marginHorizontal: space.s4,
-    marginTop: space.s2,
+    marginTop: space.s4,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

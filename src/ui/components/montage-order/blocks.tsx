@@ -1,8 +1,8 @@
-import { Music, Sparkles, VolumeX } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { ChevronRight, Music, Sparkles, VolumeX } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { Image } from '@/ui/kit/image';
@@ -98,6 +98,7 @@ export function MusicCard({
               <Text role="meta">+{spare}</Text>
             </View>
           ) : null}
+          {onPress ? <ChevronRight size={18} color={color.muted} /> : null}
         </>
       ) : (
         <>
@@ -140,28 +141,39 @@ export function FramesCard({
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
+  const { color } = useTheme();
   const styles = useStyles();
   return (
     <Card style={styles.framesCard}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.framesRow}
-      >
-        {frames.map((uri) => (
-          <Image
-            key={uri}
-            source={uri}
-            group={group}
-            style={styles.frame}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        ))}
-      </ScrollView>
-      {onPress ? (
-        <Button label={t('montage.movie.allFrames')} variant="quiet" onPress={onPress} />
-      ) : null}
+      <View style={styles.framesWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.framesRow}
+        >
+          {frames.map((uri) => (
+            <Image
+              key={uri}
+              source={uri}
+              group={group}
+              style={styles.frame}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ))}
+        </ScrollView>
+        {onPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('montage.movie.allFrames')}
+            onPress={onPress}
+            style={styles.framesMore}
+          >
+            <BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} />
+            <ChevronRight size={18} color={color.paper} />
+          </Pressable>
+        ) : null}
+      </View>
     </Card>
   );
 }
@@ -217,11 +229,26 @@ const useStyles = themed(({ color }) =>
       flex: 1,
     },
     framesCard: {
-      gap: space.s2,
       padding: space.s3,
+    },
+    framesWrap: {
+      position: 'relative',
     },
     framesRow: {
       gap: space.s1,
+      paddingRight: 44,
+    },
+    framesMore: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      borderTopRightRadius: radius.tile,
+      borderBottomRightRadius: radius.tile,
     },
     frame: {
       width: 56,
