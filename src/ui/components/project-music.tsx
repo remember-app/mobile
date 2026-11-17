@@ -98,18 +98,20 @@ function Row({ song, checked, player }: { song: Song; checked?: boolean; player?
   const current = player !== undefined && player.song?.id === song.id;
   return (
     <View style={styles.row}>
-      <View style={styles.art}>
-        {song.coverUrl ? (
-          <Image
-            source={song.coverUrl}
-            scope="music"
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        ) : (
-          <Music size={18} color={color.muted} />
-        )}
+      <View style={styles.slot}>
+        <View style={styles.art}>
+          {song.coverUrl ? (
+            <Image
+              source={song.coverUrl}
+              scope="music"
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <Music size={18} color={color.muted} />
+          )}
+        </View>
       </View>
       <View style={styles.words}>
         <Text role="row" numberOfLines={1}>
@@ -121,35 +123,37 @@ function Row({ song, checked, player }: { song: Song; checked?: boolean; player?
           </Text>
         ) : null}
       </View>
-      {player ? (
-        current && player.loading ? (
-          <View style={styles.spinner}>
-            <CircularSpinner size={18} />
+      <View style={styles.slot}>
+        {player ? (
+          current && player.loading ? (
+            <View style={styles.spinner}>
+              <CircularSpinner size={18} />
+            </View>
+          ) : (
+            <IconButton
+              icon={current && player.playing ? Pause : Play}
+              label={current && player.playing ? t('songs.pause') : t('songs.play')}
+              tone="ghost"
+              size={40}
+              glyph={{ size: 18, filled: true }}
+              onPress={() => void player.play(song)}
+            />
+          )
+        ) : null}
+        {checked === undefined ? null : (
+          <View
+            style={[
+              styles.check,
+              {
+                borderColor: checked ? color.accent : color.line,
+                backgroundColor: checked ? color.accent : 'transparent',
+              },
+            ]}
+          >
+            {checked ? <Check size={16} color={color.onFill} /> : null}
           </View>
-        ) : (
-          <IconButton
-            icon={current && player.playing ? Pause : Play}
-            label={current && player.playing ? t('songs.pause') : t('songs.play')}
-            tone="ghost"
-            size={40}
-            glyph={{ size: 18, filled: true }}
-            onPress={() => void player.play(song)}
-          />
-        )
-      ) : null}
-      {checked === undefined ? null : (
-        <View
-          style={[
-            styles.check,
-            {
-              borderColor: checked ? color.accent : color.line,
-              backgroundColor: checked ? color.accent : 'transparent',
-            },
-          ]}
-        >
-          {checked ? <Check size={16} color={color.onFill} /> : null}
-        </View>
-      )}
+        )}
+      </View>
     </View>
   );
 }
@@ -163,6 +167,11 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingHorizontal: space.s4,
       backgroundColor: color.surface,
+    },
+    slot: {
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     art: {
       width: 40,

@@ -130,13 +130,17 @@ function LabelRow({
   const styles = useStyles();
   const row = (
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.row}>
-      <LabelMark tint={label.color} size={30} />
+      <View style={styles.slot}>
+        <LabelMark tint={label.color} size={30} />
+      </View>
       <Text role="row" numberOfLines={1} style={styles.name}>
         {label.name}
       </Text>
-      <Text role="bodySm" tone="muted">
-        {label.itemCount}
-      </Text>
+      <View style={styles.slot}>
+        <Text role="bodySm" tone="muted">
+          {label.itemCount}
+        </Text>
+      </View>
     </Pressable>
   );
 
@@ -200,6 +204,11 @@ const useStyles = themed(({ color }) =>
     },
     name: {
       flex: 1,
+    },
+    slot: {
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     divider: {
       height: StyleSheet.hairlineWidth,

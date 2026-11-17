@@ -101,12 +101,12 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.line,
     },
     member: {
-      minHeight: 64,
+      minHeight: 56,
       paddingHorizontal: space.s4,
     },
     standing: {
-      maxWidth: '48%',
-      alignItems: 'flex-end',
+      width: 44,
+      alignItems: 'center',
     },
     break: {
       flexDirection: 'row',
