@@ -1,6 +1,6 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, ChevronRight, Music, Pause, Play, Plus } from 'lucide-react-native';
+import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -16,10 +16,9 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
-import { confirmAction } from '@/ui/confirm';
+import { SwipeRow } from '@/ui/components/swipe-row';
 import { useOwnSongs } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
-import { Rows } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
@@ -61,22 +60,15 @@ export default function SongsScreen() {
   const [error, setError] = useState<string | null>(null);
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
-  const [playing, setPlaying] = useState(false);
+  const [playingId, setPlayingId] = useState<SongId | null>(null);
 
   useEffect(() => {
     void loadOwnSongs().catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (status.didJustFinish) setPlaying(false);
+    if (status.didJustFinish) setPlayingId(null);
   }, [status.didJustFinish]);
-
-  useEffect(() => {
-    if (draft === null) {
-      player.pause();
-      setPlaying(false);
-    }
-  }, [draft, player]);
 
   const close = () => {
     setSheetOpen(false);
@@ -167,22 +159,24 @@ export default function SongsScreen() {
     });
   };
 
-  const toggle = async () => {
-    if (!draft) return;
-    if (playing) {
+  const toggle = async (song: Song) => {
+    if (playingId === song.id) {
       player.pause();
-      setPlaying(false);
+      setPlayingId(null);
       return;
     }
     try {
-      const url = draft.audioUri ?? (draft.id === null ? null : await songUrl(draft.id));
-      if (!url) return;
+      const url = await songUrl(song.id);
       player.replace(url);
       player.play();
-      setPlaying(true);
+      setPlayingId(song.id);
     } catch {
-      setPlaying(false);
+      setPlayingId(null);
     }
+  };
+
+  const remove = (song: Song) => {
+    void deleteOwnSong(song.id).catch(() => undefined);
   };
 
   const pickCover = async () => {
@@ -235,26 +229,6 @@ export default function SongsScreen() {
     }
   };
 
-  const remove = () => {
-    if (!draft?.id) return;
-    const songId = draft.id;
-    confirmAction({
-      title: draft.name,
-      confirm: t('songs.delete'),
-      destructive: true,
-      onConfirm: () => {
-        void (async () => {
-          try {
-            await deleteOwnSong(songId);
-            close();
-          } catch {
-            setError(t('songs.saveFailed'));
-          }
-        })();
-      },
-    });
-  };
-
   const canSave =
     draft !== null &&
     draft.name.trim().length > 0 &&
@@ -282,9 +256,9 @@ export default function SongsScreen() {
       }
     >
       {songs.items.length > 0 ? (
-        <Card style={styles.card}>
-          <Rows items={songs.items} keyOf={(song) => song.id}>
-            {(song) => (
+        <Card clip>
+          {songs.items.map((song) => (
+            <SwipeRow key={song.id} tone="danger" icon={Trash2} onAction={() => remove(song)}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={song.name}
@@ -312,10 +286,16 @@ export default function SongsScreen() {
                     {song.author}
                   </Text>
                 </View>
-                <ChevronRight size={18} color={color.muted} />
+                <IconButton
+                  icon={playingId === song.id ? Pause : Play}
+                  label={playingId === song.id ? t('songs.pause') : t('songs.play')}
+                  tone="ghost"
+                  size={40}
+                  onPress={() => void toggle(song)}
+                />
               </Pressable>
-            )}
-          </Rows>
+            </SwipeRow>
+          ))}
         </Card>
       ) : null}
 
@@ -332,96 +312,73 @@ export default function SongsScreen() {
             </Text>
           </View>
         ) : draft ? (
-          <View style={styles.form}>
-            <View style={styles.head}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('songs.changeCover')}
-                onPress={() => void pickCover()}
-                style={styles.cover}
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('songs.changeCover')}
+              onPress={() => void pickCover()}
+              style={styles.coverEdit}
+            >
+              {draft.coverUri ? (
+                <Image
+                  source={draft.coverUri}
+                  scope="music"
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                />
+              ) : (
+                <Music size={28} color={color.muted} />
+              )}
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.coverBadge,
+                  { backgroundColor: color.paper, borderColor: color.surface },
+                ]}
               >
-                {draft.coverUri ? (
-                  <Image
-                    source={draft.coverUri}
-                    scope="music"
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <Music size={28} color={color.muted} />
-                )}
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.badge,
-                    { backgroundColor: color.paper, borderColor: color.surface },
-                  ]}
-                >
-                  {coverBusy ? (
-                    <CircularSpinner size={14} />
-                  ) : (
-                    <Camera size={14} color={color.ink} />
-                  )}
-                </View>
-              </Pressable>
-              <View style={styles.headWords}>
-                <Text role="row" numberOfLines={1}>
-                  {draft.name.trim() || t('songs.title')}
-                </Text>
-                <Text role="meta" tone="muted" numberOfLines={1}>
-                  {draft.author.trim() || '—'}
-                </Text>
+                {coverBusy ? <CircularSpinner size={14} /> : <Camera size={14} color={color.ink} />}
               </View>
-              <IconButton
-                icon={playing ? Pause : Play}
-                label={playing ? t('songs.pause') : t('songs.play')}
-                tone="surface"
-                size={44}
-                disabled={draft.mediaId === null && draft.id === null}
-                onPress={() => void toggle()}
+            </Pressable>
+            <View style={styles.form}>
+              <Field
+                label={t('songs.name')}
+                value={draft.name}
+                onChangeText={(name) =>
+                  setDraft((current) => (current ? { ...current, name } : current))
+                }
+                placeholder={t('songs.name')}
+                autoCapitalize="sentences"
+              />
+              <Field
+                label={t('songs.author')}
+                value={draft.author}
+                onChangeText={(author) =>
+                  setDraft((current) => (current ? { ...current, author } : current))
+                }
+                placeholder={t('songs.author')}
+                autoCapitalize="words"
+              />
+              {error ? (
+                <Text role="meta" tone="danger">
+                  {error}
+                </Text>
+              ) : null}
+              {draft.id === null ? (
+                <Button
+                  label={t('songs.chooseFile')}
+                  variant="secondary"
+                  disabled={uploading || saving}
+                  onPress={() => void chooseFile()}
+                />
+              ) : null}
+              <Button
+                label={t('action.save')}
+                variant="primary"
+                disabled={!canSave}
+                onPress={() => void save()}
               />
             </View>
-            <Field
-              label={t('songs.name')}
-              value={draft.name}
-              onChangeText={(name) =>
-                setDraft((current) => (current ? { ...current, name } : current))
-              }
-              placeholder={t('songs.name')}
-              autoCapitalize="sentences"
-            />
-            <Field
-              label={t('songs.author')}
-              value={draft.author}
-              onChangeText={(author) =>
-                setDraft((current) => (current ? { ...current, author } : current))
-              }
-              placeholder={t('songs.author')}
-              autoCapitalize="words"
-            />
-            {error ? (
-              <Text role="meta" tone="danger">
-                {error}
-              </Text>
-            ) : null}
-            {draft.id === null ? (
-              <Button
-                label={t('songs.chooseFile')}
-                variant="secondary"
-                disabled={uploading || saving}
-                onPress={() => void chooseFile()}
-              />
-            ) : null}
-            <Button
-              label={t('action.save')}
-              variant="primary"
-              disabled={!canSave}
-              onPress={() => void save()}
-            />
-            {draft.id ? (
-              <Button label={t('songs.delete')} variant="danger" onPress={remove} />
-            ) : null}
-          </View>
+          </>
         ) : null}
       </BottomSheet>
     </Board>
@@ -430,14 +387,12 @@ export default function SongsScreen() {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    card: {
-      padding: space.s4,
-    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      minHeight: 52,
+      minHeight: 56,
+      paddingHorizontal: space.s4,
     },
     art: {
       width: 44,
@@ -453,18 +408,11 @@ const useStyles = themed(({ color }) =>
       gap: 2,
     },
     form: {
-      gap: space.s3,
-    },
-    head: {
-      flexDirection: 'row',
-      alignItems: 'center',
       gap: space.s4,
     },
-    headWords: {
-      flex: 1,
-      gap: 2,
-    },
-    cover: {
+    coverEdit: {
+      alignSelf: 'center',
+      position: 'relative',
       width: 72,
       height: 72,
       borderRadius: radius.cover,
@@ -473,14 +421,14 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
       backgroundColor: color.raise,
     },
-    badge: {
+    coverBadge: {
       position: 'absolute',
-      right: 2,
-      bottom: 2,
-      width: 24,
-      height: 24,
-      borderRadius: radius.pill,
-      borderWidth: 1,
+      right: -2,
+      bottom: -2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
