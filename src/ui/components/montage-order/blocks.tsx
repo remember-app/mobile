@@ -242,7 +242,7 @@ const useStyles = themed(({ color }) =>
       gap: space.s1,
     },
     framesMore: {
-      width: 32,
+      width: 16,
       height: 56,
       alignItems: 'center',
       justifyContent: 'center',
