@@ -205,11 +205,7 @@ export default function MovieScreen() {
       <ActionBar>
         <Button label={t('montage.movie.watch')} variant="primary" icon={Play} onPress={watch} />
       </ActionBar>
-      <BottomSheet
-        visible={promptOpen}
-        onClose={() => setPromptOpen(false)}
-        title={t('montage.movie.prompt')}
-      >
+      <BottomSheet visible={promptOpen} onClose={() => setPromptOpen(false)}>
         <Text role="body">{settings?.prompt ?? ''}</Text>
       </BottomSheet>
     </View>

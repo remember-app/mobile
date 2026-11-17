@@ -194,7 +194,7 @@ export function MontageConfigCard({
         {children}
       </Card>
 
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('montage.movie.prompt')}>
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
         <Text role="body">{prompt ?? ''}</Text>
       </BottomSheet>
     </>

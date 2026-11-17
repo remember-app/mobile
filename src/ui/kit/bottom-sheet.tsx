@@ -14,17 +14,14 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { Text } from './text';
-
 type Props = {
   visible: boolean;
   onClose: () => void;
-  title?: string;
   size?: 'auto' | 'full';
   children: ReactNode;
 };
 
-export function BottomSheet({ visible, onClose, title, size = 'auto', children }: Props) {
+export function BottomSheet({ visible, onClose, size = 'auto', children }: Props) {
   const tall = size === 'full';
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -84,11 +81,6 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
             ]}
           >
             <View style={[styles.grabber, { backgroundColor: color.lineStrong }]} />
-            {title ? (
-              <Text role="title" style={styles.title}>
-                {title}
-              </Text>
-            ) : null}
             <Pressable
               onPress={() => undefined}
               style={[styles.content, tall ? styles.fill : null]}
@@ -122,10 +114,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignSelf: 'center',
     marginBottom: space.s3,
-  },
-  title: {
-    marginBottom: space.s3,
-    textAlign: 'center',
   },
   content: {
     gap: space.s3,

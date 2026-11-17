@@ -312,7 +312,7 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      <BottomSheet visible={editing} onClose={() => setEditing(false)} title={t('profile.edit')}>
+      <BottomSheet visible={editing} onClose={() => setEditing(false)}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('profile.changePhoto')}

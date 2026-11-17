@@ -74,11 +74,7 @@ export default function DirectingJournalScreen() {
           onPress={() => setOpen(true)}
         />
       </ActionBar>
-      <BottomSheet
-        visible={open}
-        onClose={() => setOpen(false)}
-        title={t('montage.journal.directing')}
-      >
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom }}>
           <View style={{ paddingHorizontal: space.s4 }}>
             <Text role="body">{text}</Text>

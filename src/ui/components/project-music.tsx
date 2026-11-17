@@ -70,7 +70,7 @@ export function ProjectMusic({ projectId, player }: { projectId: ProjectId; play
             ))}
       </Card>
 
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('music.new')}>
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
         {own.items.length === 0 ? null : (
           <View style={styles.sheetList}>
             {own.items.map((song) => (

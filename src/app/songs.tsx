@@ -280,11 +280,7 @@ export default function SongsScreen() {
           </Card>
         ) : null}
 
-        <BottomSheet
-          visible={sheetOpen}
-          onClose={close}
-          title={draft?.id ? t('songs.edit') : t('songs.add')}
-        >
+        <BottomSheet visible={sheetOpen} onClose={close}>
           {uploading ? (
             <View style={styles.uploading}>
               <CircularSpinner size={20} />

@@ -131,7 +131,7 @@ export default function ContactsScreen() {
         </>
       ) : null}
 
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('contacts.add')}>
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
         <View style={styles.form}>
           <ArrowField
             label={t('contacts.nick')}

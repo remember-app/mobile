@@ -123,11 +123,7 @@ export function TemplatesPage({
           )}
         </OrderScroll>
       </OrderPage>
-      <BottomSheet
-        visible={described !== null}
-        onClose={() => setDescribed(null)}
-        title={described ? described.about[language].name : ''}
-      >
+      <BottomSheet visible={described !== null} onClose={() => setDescribed(null)}>
         <Text role="body">{described ? described.about[language].description : ''}</Text>
       </BottomSheet>
     </>

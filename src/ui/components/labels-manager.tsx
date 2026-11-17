@@ -101,7 +101,7 @@ export function LabelsManager({ projectId }: { projectId: ProjectId }) {
           </CollapsibleList>
         )}
       </Card>
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('labels.new')}>
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
         <View style={styles.form}>
           <ColorSlider hue={hue} onChange={setHue} />
           <ArrowField

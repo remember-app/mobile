@@ -26,12 +26,6 @@ import { space, themed, useTheme } from '@/ui/theme';
 
 type Metric = 'people' | 'gb' | 'tokens';
 
-const TITLES = {
-  people: 'info.invite',
-  gb: 'info.storage',
-  tokens: 'info.tokens',
-} as const;
-
 const GIB = 1024 ** 3;
 
 export default function ProjectInfoScreen() {
@@ -157,11 +151,7 @@ export default function ProjectInfoScreen() {
 
         <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
 
-        <BottomSheet
-          visible={metric !== null}
-          onClose={() => setMetric(null)}
-          title={metric ? t(TITLES[metric]) : undefined}
-        >
+        <BottomSheet visible={metric !== null} onClose={() => setMetric(null)}>
           {metric === 'people' ? (
             <InviteBlocks projectId={projectId} projectTitle={project.title} />
           ) : null}
