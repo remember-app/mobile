@@ -21,7 +21,6 @@ import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
-  const { color } = useTheme();
   const styles = useStyles();
   const project = useProjectSongs(projectId);
   const own = useOwnSongs();
