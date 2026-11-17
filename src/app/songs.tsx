@@ -302,16 +302,18 @@ export default function SongsScreen() {
                 onPress={() => void pickCover()}
                 style={styles.coverEdit}
               >
-                {draft.coverUri ? (
-                  <Image
-                    source={draft.coverUri}
-                    scope="music"
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <Music size={28} color={color.muted} />
-                )}
+                <View style={styles.coverFrame}>
+                  {draft.coverUri ? (
+                    <Image
+                      source={draft.coverUri}
+                      scope="music"
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Music size={28} color={color.muted} />
+                  )}
+                </View>
                 <View
                   pointerEvents="none"
                   style={[
@@ -431,6 +433,13 @@ const useStyles = themed(({ color }) =>
       position: 'relative',
       width: 72,
       height: 72,
+    },
+    coverFrame: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       borderRadius: radius.cell,
       overflow: 'hidden',
       alignItems: 'center',
@@ -439,7 +448,7 @@ const useStyles = themed(({ color }) =>
     },
     coverBadge: {
       position: 'absolute',
-      bottom: -2,
+      bottom: -13,
       width: 26,
       height: 26,
       borderRadius: 13,
@@ -448,10 +457,10 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     coverBadgeRight: {
-      right: -2,
+      right: -13,
     },
     coverBadgeLeft: {
-      left: -2,
+      left: -13,
     },
     uploading: {
       flexDirection: 'row',
