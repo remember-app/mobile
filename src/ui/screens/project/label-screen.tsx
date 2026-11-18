@@ -10,7 +10,7 @@ import { LabelMark } from '@/ui/components/common/label';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
-import { tileOf } from '@/ui/components/media/photo-item';
+import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { useAccount, useAvatar, useGallery, useLabels } from '@/ui/hooks';
@@ -39,10 +39,12 @@ export default function LabelScreen() {
     void loadGallery(projectId);
   }, [projectId]);
 
-  const photos = useMemo<Photo[]>(
-    () => gallery.items.filter((item) => item.labelIds.includes(labelKey)).map(tileOf),
+  const labeled = useMemo(
+    () => gallery.items.filter((item) => item.labelIds.includes(labelKey)),
     [gallery.items, labelKey],
   );
+  const photos = useMemo<Photo[]>(() => labeled.map(tileOf), [labeled]);
+  const viewerPhotos = useMemo(() => labeled.map(viewerOf), [labeled]);
 
   if (!label) {
     return <Missing title={t('labels.title')} message={t('labels.notFound')} />;
@@ -79,7 +81,7 @@ export default function LabelScreen() {
         </BlurBar>
         {open === null ? null : (
           <PhotoViewer
-            photos={photos}
+            photos={viewerPhotos}
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}

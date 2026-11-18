@@ -1,11 +1,14 @@
+import type { MutableRefObject } from 'react';
+
 import { space } from '@/ui/theme';
 
-import { type Photo, PhotoGrid, type Rect } from '../../media/photo-grid';
+import { type MeasureTile, type Photo, PhotoGrid, type Rect } from '../../media/photo-grid';
 import { OrderPage } from './wizard';
 
 export function ShotsPage({
   photos,
   blankIndex,
+  measureRef,
   onOpen,
   onSelect,
   onRequire,
@@ -18,6 +21,7 @@ export function ShotsPage({
 }: {
   photos: readonly Photo[];
   blankIndex: number | null;
+  measureRef?: MutableRefObject<MeasureTile | null>;
   onOpen: (index: number, rect?: Rect) => void;
   onSelect: (index: number) => void;
   onRequire: (index: number) => void;
@@ -39,6 +43,7 @@ export function ShotsPage({
         onLoadOlder={onLoadOlder}
         padding={{ top: top + space.s2, bottom }}
         blankIndex={blankIndex}
+        measureRef={measureRef}
       />
     </OrderPage>
   );

@@ -16,7 +16,6 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { resolveDeviceAsset } from '@/functionality';
 import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import { IconButton } from '@/ui/kit/controls/button';
 import { Image } from '@/ui/kit/primitives/image';
@@ -63,25 +62,12 @@ export function VideoFrame({
   const { zoomed, pinch, move, zoomStyle } = useZoom({ width, height, info, onZoomed });
 
   useEffect(() => {
-    if (!photo.assetId) {
-      const group = photo.projectId ?? null;
-      const url = photo.playbackUrl;
-      const local = url ? cachedUrl(url, group) : null;
-      setUri(local ?? url ?? null);
-      if (active && url && !local) void keepUrl(url, group);
-      return;
-    }
-    let live = true;
-    resolveDeviceAsset(photo.assetId).then(
-      (local) => {
-        if (live) setUri(local.uri);
-      },
-      () => undefined,
-    );
-    return () => {
-      live = false;
-    };
-  }, [active, photo.assetId, photo.playbackUrl, photo.projectId]);
+    const group = photo.projectId ?? null;
+    const url = photo.playbackUrl;
+    const local = url ? cachedUrl(url, group) : null;
+    setUri(local ?? url ?? null);
+    if (active && url && !local) void keepUrl(url, group);
+  }, [active, photo.playbackUrl, photo.projectId]);
 
   const { openInfo, closeInfo, dismiss } = verticalGestures({
     height,

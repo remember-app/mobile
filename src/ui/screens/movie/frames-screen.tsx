@@ -1,14 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMovies } from '@/functionality';
 import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { useGallery, useMovies } from '@/ui/hooks';
 import { Board } from '@/ui/kit/chrome/bars';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -22,7 +23,7 @@ export default function MovieFramesScreen() {
   const projectId = id as ProjectId;
   const movies = useMovies(projectId);
   const gallery = useGallery(projectId);
-  const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
+  const { viewer: open, setViewer: setOpen, measureTile, onIndex } = usePhotoViewer();
 
   useEffect(() => {
     void loadMovies(projectId);
@@ -58,6 +59,7 @@ export default function MovieFramesScreen() {
         onOpen={(index, rect) => setOpen({ index, rect })}
         padding={{ top: insets.top + 60, bottom: insets.bottom + space.s4 }}
         blankIndex={open?.index ?? null}
+        measureRef={measureTile}
       />
       <BlurBar edge="top" style={styles.top}>
         {bar}
@@ -68,6 +70,7 @@ export default function MovieFramesScreen() {
           initialIndex={open.index}
           origin={open.rect}
           onClose={() => setOpen(null)}
+          onIndex={onIndex}
         />
       )}
     </View>

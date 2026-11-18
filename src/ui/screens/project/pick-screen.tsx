@@ -18,9 +18,9 @@ import { fileDigest } from '@/integrations/files/parts';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { PHOTO_COLUMNS, type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
+import { deviceTileOf, deviceViewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
-import { duration } from '@/ui/format';
 import { useProjectCard, useUploads } from '@/ui/hooks';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -359,29 +359,14 @@ export default function PickScreen() {
   const photos = useMemo<Photo[]>(
     () =>
       ordered.map((asset) => ({
-        id: asset.id,
-        source: asset.uri,
-        video: asset.kind === 'video',
+        ...deviceTileOf(asset),
         select: order.get(asset.id) ?? null,
         accent: duplicates.has(asset.id),
-        note: asset.kind === 'video' ? duration(asset.duration) : undefined,
       })),
     [duplicates, order, ordered],
   );
 
-  const viewerPhotos = useMemo(
-    () =>
-      ordered.map((asset) => ({
-        id: asset.id,
-        source: asset.uri,
-        width: asset.width,
-        height: asset.height,
-        video: asset.kind === 'video',
-        assetId: asset.id,
-        capturedAt: new Date(asset.createdAt),
-      })),
-    [ordered],
-  );
+  const viewerPhotos = useMemo(() => ordered.map(deviceViewerOf), [ordered]);
 
   const actionLabel = checking
     ? slow && preparing

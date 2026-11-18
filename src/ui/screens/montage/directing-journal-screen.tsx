@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMontages } from '@/functionality';
 import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { useGallery, useMontages } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
 import { BottomSheet } from '@/ui/kit/chrome/bottom-sheet';
@@ -27,7 +28,7 @@ export default function DirectingJournalScreen() {
   const gallery = useGallery(projectId);
   const montage = montages.items.find((entry) => entry.id === montageId);
   const [open, setOpen] = useState(false);
-  const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
+  const { viewer, setViewer, measureTile, onIndex } = usePhotoViewer();
 
   useEffect(() => {
     void loadMontages(projectId);
@@ -62,6 +63,7 @@ export default function DirectingJournalScreen() {
         onOpen={(index, rect) => setViewer({ index, rect })}
         padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
         blankIndex={viewer?.index ?? null}
+        measureRef={measureTile}
       />
       <BlurBar edge="top" style={styles.head}>
         {bar}
@@ -87,6 +89,7 @@ export default function DirectingJournalScreen() {
           initialIndex={viewer.index}
           origin={viewer.rect}
           onClose={() => setViewer(null)}
+          onIndex={onIndex}
         />
       )}
     </View>

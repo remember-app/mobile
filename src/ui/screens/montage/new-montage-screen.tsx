@@ -39,9 +39,10 @@ import {
   NO_FILTERS,
 } from '@/ui/components/gallery/gallery-filters';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
-import type { Photo, Rect } from '@/ui/components/media/photo-grid';
+import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { MetaPage } from '@/ui/components/montage/order/meta';
 import { MusicPage } from '@/ui/components/montage/order/music';
 import { ShotsPage } from '@/ui/components/montage/order/shots';
@@ -101,7 +102,7 @@ export default function NewMontageScreen() {
   const [error, setError] = useState<string | null>(null);
   const [payer, setPayer] = useState<'project' | 'user' | null>(null);
   const [director, setDirector] = useState(false);
-  const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
+  const { viewer, setViewer, measureTile, onIndex } = usePhotoViewer();
   const [description, setDescription] = useState('');
   const [filters, setFilters] = useState<GalleryFiltersValue>(NO_FILTERS);
   const [filtering, setFiltering] = useState(false);
@@ -423,6 +424,7 @@ export default function NewMontageScreen() {
               bottom={insets.bottom + 72}
               photos={photos}
               blankIndex={viewer?.index ?? null}
+              measureRef={measureTile}
               onOpen={(index, rect) => setViewer({ index, rect })}
               onSelect={(index) => {
                 const itemId = shotIds[index];
@@ -542,7 +544,7 @@ export default function NewMontageScreen() {
           origin={viewer.rect}
           onClose={() => setViewer(null)}
           onLoadMore={() => void loadMoreGallery(projectId)}
-          onIndex={(next) => setViewer((was) => (was === null ? was : { ...was, index: next }))}
+          onIndex={onIndex}
           selected={selectedAt.has(shotIds[viewer.index] ?? '')}
           onSelect={() => {
             const itemId = shotIds[viewer.index];

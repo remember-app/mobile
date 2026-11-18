@@ -16,7 +16,6 @@ export type Photo = {
   preview?: ImageSource | string | null;
   original?: string | null;
   video?: boolean;
-  assetId?: string;
   playbackUrl?: string | null;
   width?: number;
   height?: number;
