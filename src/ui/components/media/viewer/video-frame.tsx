@@ -91,39 +91,25 @@ export function VideoFrame({
     ],
   }));
 
-  const live = active && settled;
-
   return (
     <GestureDetector
       gesture={Gesture.Simultaneous(pinch, Gesture.Race(move, openInfo, closeInfo, dismiss))}
     >
       <Animated.View style={[viewerStyles.page, style]}>
         {uri ? (
-          <>
-            <Video
-              uri={uri}
-              box={videoBox}
-              width={width}
-              layout={layout}
-              active={live}
-              onTap={onTap}
-              visible={visible}
-              muted={muted}
-              onMutedChange={onMutedChange}
-              zoomStyle={zoomStyle}
-            />
-            {live || !(photo.thumb ?? photo.source) ? null : (
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Image
-                  source={photo.thumb ?? photo.source}
-                  group={photo.projectId}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
-              </View>
-            )}
-          </>
+          <Video
+            uri={uri}
+            box={videoBox}
+            width={width}
+            layout={layout}
+            active={active}
+            settled={settled}
+            onTap={onTap}
+            visible={visible}
+            muted={muted}
+            onMutedChange={onMutedChange}
+            zoomStyle={zoomStyle}
+          />
         ) : (photo.thumb ?? photo.source) ? (
           <View style={videoBox}>
             <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
@@ -150,6 +136,7 @@ function Video({
   width,
   layout,
   active,
+  settled,
   onTap,
   visible,
   muted,
@@ -161,6 +148,7 @@ function Video({
   width: number;
   layout: ViewerLayout;
   active: boolean;
+  settled: boolean;
   onTap: () => void;
   visible: boolean;
   muted: boolean;
@@ -170,34 +158,40 @@ function Video({
   const { t } = useTranslation();
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
+  const wasActive = useRef(false);
   const player = useVideoPlayer(uri, (entry) => {
     entry.loop = true;
     entry.timeUpdateEventInterval = 0.02;
   });
 
-  useEventListener(player, 'playingChange', ({ isPlaying }) => {
-    setPlaying(isPlaying);
-  });
-
   useEffect(() => {
-    player.muted = muted;
-  }, [muted, player]);
+    if (!active) {
+      if (wasActive.current) {
+        player.currentTime = 0;
+        setPlaying(false);
+        wasActive.current = false;
+      }
+      return;
+    }
+    if (!wasActive.current) {
+      player.currentTime = 0;
+      setPlaying(true);
+      wasActive.current = true;
+    }
+  }, [active, player]);
 
-  const wasActive = useRef(false);
+  // Во время скролла картинка и звук замирают, но состояние кнопок не меняется.
   useEffect(() => {
-    if (active) {
+    if (active && settled && playing) {
+      player.muted = muted;
       player.play();
     } else {
       player.pause();
-      if (wasActive.current) player.currentTime = 0;
+      player.muted = true;
     }
-    wasActive.current = active;
-  }, [active, player]);
+  }, [active, settled, playing, muted, player]);
 
-  const toggle = () => {
-    if (player.playing) player.pause();
-    else player.play();
-  };
+  const toggle = () => setPlaying((was) => !was);
 
   const toggleMute = () => {
     onMutedChange(!muted);

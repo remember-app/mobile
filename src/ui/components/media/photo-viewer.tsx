@@ -397,7 +397,7 @@ export function PhotoViewer({
                     onZoomed={setZoomed}
                     active={at === index}
                     settled={!scrolling}
-                    visible={chrome && !zoomed && at === index && !scrolling}
+                    visible={chrome && !zoomed && at === index}
                     muted={muted}
                     onMutedChange={setMuted}
                   />
