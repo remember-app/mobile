@@ -183,9 +183,15 @@ function Video({
     player.muted = muted;
   }, [muted, player]);
 
+  const wasActive = useRef(false);
   useEffect(() => {
-    if (active) player.play();
-    else player.pause();
+    if (active) {
+      player.play();
+    } else {
+      player.pause();
+      if (wasActive.current) player.currentTime = 0;
+    }
+    wasActive.current = active;
   }, [active, player]);
 
   const toggle = () => {
@@ -233,7 +239,7 @@ function Video({
             glyph={{ size: 18, filled: true }}
             onPress={toggle}
           />
-          <Progress player={player} uri={uri} />
+          <Progress player={player} uri={uri} active={active} />
           <IconButton
             icon={muted ? VolumeX : Volume2}
             label={muted ? t('action.unmute') : t('action.mute')}
@@ -254,7 +260,7 @@ const THUMB_W = 24;
 const THUMB_H = 14;
 const RAIL = 5;
 
-function Progress({ player, uri }: { player: VideoPlayer; uri: string }) {
+function Progress({ player, uri, active }: { player: VideoPlayer; uri: string; active: boolean }) {
   const { color } = useTheme();
   const width = useSharedValue(0);
   const duration = useSharedValue(0);
@@ -270,7 +276,7 @@ function Progress({ player, uri }: { player: VideoPlayer; uri: string }) {
 
   useEffect(() => {
     shown.value = 0;
-  }, [shown, uri]);
+  }, [shown, uri, active]);
 
   const seek = useCallback(
     (time: number) => {
