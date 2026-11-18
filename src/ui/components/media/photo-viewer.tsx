@@ -396,7 +396,6 @@ export function PhotoViewer({
                     onTap={() => setChrome((shown) => !shown)}
                     onZoomed={setZoomed}
                     active={at === index}
-                    settled={!scrolling}
                     visible={chrome && !zoomed && at === index}
                     muted={muted}
                     onMutedChange={setMuted}

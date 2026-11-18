@@ -40,7 +40,6 @@ export function VideoFrame({
   onTap,
   onZoomed,
   active,
-  settled,
   visible,
   muted,
   onMutedChange,
@@ -57,7 +56,6 @@ export function VideoFrame({
   onTap: () => void;
   onZoomed: (value: boolean) => void;
   active: boolean;
-  settled: boolean;
   visible: boolean;
   muted: boolean;
   onMutedChange: (value: boolean) => void;
@@ -103,7 +101,6 @@ export function VideoFrame({
             width={width}
             layout={layout}
             active={active}
-            settled={settled}
             onTap={onTap}
             visible={visible}
             muted={muted}
@@ -136,7 +133,6 @@ function Video({
   width,
   layout,
   active,
-  settled,
   onTap,
   visible,
   muted,
@@ -148,7 +144,6 @@ function Video({
   width: number;
   layout: ViewerLayout;
   active: boolean;
-  settled: boolean;
   onTap: () => void;
   visible: boolean;
   muted: boolean;
@@ -158,40 +153,34 @@ function Video({
   const { t } = useTranslation();
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
-  const wasActive = useRef(false);
   const player = useVideoPlayer(uri, (entry) => {
     entry.loop = true;
     entry.timeUpdateEventInterval = 0.02;
   });
 
-  useEffect(() => {
-    if (!active) {
-      if (wasActive.current) {
-        player.currentTime = 0;
-        setPlaying(false);
-        wasActive.current = false;
-      }
-      return;
-    }
-    if (!wasActive.current) {
-      player.currentTime = 0;
-      setPlaying(true);
-      wasActive.current = true;
-    }
-  }, [active, player]);
+  useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    setPlaying(isPlaying);
+  });
 
-  // Во время скролла картинка и звук замирают, но состояние кнопок не меняется.
   useEffect(() => {
-    if (active && settled && playing) {
-      player.muted = muted;
+    player.muted = muted;
+  }, [muted, player]);
+
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (active) {
       player.play();
     } else {
       player.pause();
-      player.muted = true;
+      if (wasActive.current) player.currentTime = 0;
     }
-  }, [active, settled, playing, muted, player]);
+    wasActive.current = active;
+  }, [active, player]);
 
-  const toggle = () => setPlaying((was) => !was);
+  const toggle = () => {
+    if (player.playing) player.pause();
+    else player.play();
+  };
 
   const toggleMute = () => {
     onMutedChange(!muted);
