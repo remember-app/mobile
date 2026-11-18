@@ -103,7 +103,7 @@ export function PhotoViewer({
   const current = currentPhoto?.source ?? null;
   const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
   const landscape = width > height;
-  const hudPad = landscape ? Math.max(insets.left, insets.right, space.s4) : space.s4;
+  const hudPad = landscape ? Math.max(insets.left, insets.right, space.s4) + space.s4 : space.s4;
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
