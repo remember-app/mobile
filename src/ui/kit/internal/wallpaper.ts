@@ -64,7 +64,7 @@ export function wallpaperFor(
   if (projectId) {
     const card = cards.find((entry) => entry.id === projectId);
 
-    if (routeName === 'project/[id]' || routeName === 'project/[id]/info') {
+    if (routeName === 'project/[id]') {
       if (!card) return plain();
       return Math.max(card.itemCount, items.length) > 0 ? plain() : centered(STATE.outline);
     }
