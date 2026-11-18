@@ -108,14 +108,15 @@ export function PhotoStrip({
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
   const dragging = useRef(false);
+  const moving = useSharedValue(false);
   const expand = useSharedValue(1);
 
   useAnimatedReaction(
-    () => active.value === 1,
-    (moving) => {
-      expand.value = withTiming(moving ? 0 : 1, { duration: 160 });
+    () => moving.value,
+    (isMoving) => {
+      expand.value = withTiming(isMoving ? 0 : 1, { duration: 160 });
     },
-    [active, expand],
+    [moving, expand],
   );
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -135,6 +136,7 @@ export function PhotoStrip({
   );
 
   const stop = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    moving.value = false;
     if (!dragging.current) return;
     dragging.current = false;
     const settled = clamp(
@@ -153,6 +155,7 @@ export function PhotoStrip({
   }, []);
 
   const select = (next: number) => {
+    moving.value = true;
     active.value = 0;
     setCenter(next);
     scroller.current?.scrollTo({ x: next * STRIP_PITCH, y: 0, animated: true });
@@ -198,6 +201,7 @@ export function PhotoStrip({
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
         dragging.current = true;
+        moving.value = true;
         active.value = 1;
         onScrolling(true);
       }}
