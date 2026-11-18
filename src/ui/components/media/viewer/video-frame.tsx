@@ -1,7 +1,7 @@
 import { useEventListener } from 'expo';
 import { useVideoPlayer, type VideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -44,6 +44,7 @@ export function VideoFrame({
   muted,
   onMutedChange,
   speed,
+  onSpeedChange,
 }: {
   photo: ViewerPhoto;
   width: number;
@@ -61,6 +62,7 @@ export function VideoFrame({
   muted: boolean;
   onMutedChange: (value: boolean) => void;
   speed: number;
+  onSpeedChange: (value: boolean) => void;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
   const videoBox = boxFor(mediaSize(photo), width, height);
@@ -84,6 +86,52 @@ export function VideoFrame({
     onDismiss,
   });
 
+  const speedStart = useSharedValue({ x: 0, y: 0 });
+  const speedMoved = useSharedValue(false);
+  const speedActivated = useSharedValue(false);
+  const speedPress = useMemo(
+    () =>
+      Gesture.LongPress()
+        .minDuration(400)
+        .maxDistance(10000)
+        .numberOfPointers(1)
+        .enabled(active && !zoomed)
+        .onTouchesDown((event, manager) => {
+          const touch = event.allTouches[0];
+          if (!touch || (touch.x > 32 && width - touch.x > 32)) {
+            manager.fail();
+            return;
+          }
+          speedStart.value = { x: touch.x, y: touch.y };
+          speedMoved.value = false;
+        })
+        .onTouchesMove((event, manager) => {
+          if (speedActivated.value) return;
+          const touch = event.allTouches[0];
+          if (!touch) return;
+          const dx = touch.x - speedStart.value.x;
+          const dy = touch.y - speedStart.value.y;
+          if (dx * dx + dy * dy > 64) {
+            speedMoved.value = true;
+            manager.fail();
+          }
+        })
+        .onStart(() => {
+          if (speedMoved.value) return;
+          speedActivated.value = true;
+          scheduleOnRN(onSpeedChange, true);
+        })
+        .onEnd(() => {
+          speedActivated.value = false;
+          scheduleOnRN(onSpeedChange, false);
+        })
+        .onFinalize(() => {
+          speedActivated.value = false;
+          scheduleOnRN(onSpeedChange, false);
+        }),
+    [active, zoomed, width, onSpeedChange, speedActivated, speedMoved, speedStart],
+  );
+
   const style = useAnimatedStyle(() => ({
     transform: [
       { translateY: dragY.value },
@@ -93,7 +141,11 @@ export function VideoFrame({
 
   return (
     <GestureDetector
-      gesture={Gesture.Simultaneous(pinch, Gesture.Race(move, openInfo, closeInfo, dismiss))}
+      gesture={Gesture.Simultaneous(
+        pinch,
+        Gesture.Race(move, openInfo, closeInfo, dismiss),
+        speedPress,
+      )}
     >
       <Animated.View style={[viewerStyles.page, style]}>
         {uri ? (

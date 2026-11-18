@@ -11,7 +11,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   scrollTo,
@@ -111,45 +110,6 @@ export function PhotoViewer({
   const [chrome, setChrome] = useState(true);
   const [muted, setMuted] = useState(false);
   const [speedMode, setSpeedMode] = useState(false);
-  const speedStart = useSharedValue({ x: 0, y: 0 });
-  const speedMoved = useSharedValue(false);
-  const speedActivated = useSharedValue(false);
-  const makeSpeedPress = useCallback(
-    () =>
-      Gesture.LongPress()
-        .minDuration(400)
-        .maxDistance(10000)
-        .numberOfPointers(1)
-        .onTouchesDown((event) => {
-          const touch = event.allTouches[0];
-          speedStart.value = { x: touch?.x ?? 0, y: touch?.y ?? 0 };
-          speedMoved.value = false;
-        })
-        .onTouchesMove((event) => {
-          if (speedActivated.value) return;
-          const touch = event.allTouches[0];
-          if (!touch) return;
-          const dx = touch.x - speedStart.value.x;
-          const dy = touch.y - speedStart.value.y;
-          if (dx * dx + dy * dy > 64) speedMoved.value = true;
-        })
-        .onStart(() => {
-          if (speedMoved.value) return;
-          speedActivated.value = true;
-          scheduleOnRN(setSpeedMode, true);
-        })
-        .onEnd(() => {
-          speedActivated.value = false;
-          scheduleOnRN(setSpeedMode, false);
-        })
-        .onFinalize(() => {
-          speedActivated.value = false;
-          scheduleOnRN(setSpeedMode, false);
-        }),
-    [speedActivated, speedMoved, speedStart],
-  );
-  const leftPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
-  const rightPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
   const progress = useSharedValue(grows ? 0 : 1);
   const flight = useSharedValue(0);
   const fromY = useSharedValue(0);
@@ -445,6 +405,7 @@ export function PhotoViewer({
                     muted={muted}
                     onMutedChange={setMuted}
                     speed={speedMode ? 2 : 1}
+                    onSpeedChange={setSpeedMode}
                   />
                 ) : (
                   <Zoomable
@@ -560,7 +521,7 @@ export function PhotoViewer({
           style={[
             styles.hud,
             styles.speedBar,
-            { top: layout.hudTop + space.s5, paddingHorizontal: layout.hudSide },
+            { top: layout.hudTop + 56, paddingHorizontal: layout.hudSide },
           ]}
         >
           <View style={styles.hudBox}>
@@ -568,35 +529,7 @@ export function PhotoViewer({
           </View>
         </BlurBar>
       ) : null}
-      {currentPhoto?.video && !zoomed && !info ? (
-        <>
-          <GestureDetector gesture={leftPress}>
-            <View
-              style={[
-                styles.edge,
-                {
-                  left: 0,
-                  top: layout.hudTop + 56,
-                  bottom: layout.stripHitBottom + layout.stripHitHeight,
-                },
-              ]}
-            />
-          </GestureDetector>
-          <GestureDetector gesture={rightPress}>
-            <View
-              style={[
-                styles.edge,
-                {
-                  right: 0,
-                  top: layout.hudTop + 56,
-                  bottom: layout.stripHitBottom + layout.stripHitHeight,
-                },
-              ]}
-            />
-          </GestureDetector>
-        </>
-      ) : null}
-      {chrome && !zoomed && !info && !speedMode && phase === 'open' ? (
+      {chrome && !zoomed && !info && phase === 'open' ? (
         <BlurBar
           edge="top"
           shade={false}
@@ -693,11 +626,6 @@ const styles = StyleSheet.create({
   },
   speedBar: {
     justifyContent: 'center',
-  },
-  edge: {
-    position: 'absolute',
-    width: 32,
-    zIndex: 4,
   },
   hudWords: {
     alignItems: 'center',
