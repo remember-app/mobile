@@ -112,6 +112,14 @@ export function ProjectCard({ project, covers, onPress }: Props) {
             <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />
             <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
           </>
+        ) : empty ? (
+          <Image
+            source={require('../../../../assets/logo/logo-heart-2-outline.png')}
+            style={styles.emptyMark}
+            contentFit="contain"
+            cachePolicy="memory"
+            pointerEvents="none"
+          />
         ) : null}
         <Text
           role="title"
@@ -151,6 +159,14 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.ink,
       borderWidth: 1,
       borderColor: color.line,
+    },
+    emptyMark: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      width: 128,
+      height: 128,
+      transform: [{ translateX: -64 }, { translateY: -64 }],
     },
     shade: {
       position: 'absolute',
