@@ -40,6 +40,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+__pycache__
+
 example
 
 # generated native folders
