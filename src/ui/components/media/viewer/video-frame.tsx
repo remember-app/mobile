@@ -148,13 +148,12 @@ export function VideoFrame({
       )}
     >
       <Animated.View style={[viewerStyles.page, style]}>
-        {uri ? (
+        {active && uri ? (
           <Video
             uri={uri}
             box={videoBox}
             width={width}
             layout={layout}
-            active={active}
             onTap={onTap}
             visible={visible}
             muted={muted}
@@ -187,7 +186,6 @@ function Video({
   box,
   width,
   layout,
-  active,
   onTap,
   visible,
   muted,
@@ -199,7 +197,6 @@ function Video({
   box: Box;
   width: number;
   layout: ViewerLayout;
-  active: boolean;
   onTap: () => void;
   visible: boolean;
   muted: boolean;
@@ -227,16 +224,10 @@ function Video({
     player.playbackRate = speed;
   }, [speed, player]);
 
-  const wasActive = useRef(false);
   useEffect(() => {
-    if (active) {
-      player.play();
-    } else {
-      player.pause();
-      if (wasActive.current) player.currentTime = 0;
-    }
-    wasActive.current = active;
-  }, [active, player]);
+    player.play();
+    return () => player.pause();
+  }, [player]);
 
   const toggle = () => {
     if (player.playing) player.pause();
@@ -283,7 +274,7 @@ function Video({
             glyph={{ size: 18, filled: true }}
             onPress={toggle}
           />
-          <Progress player={player} uri={uri} active={active} />
+          <Progress player={player} uri={uri} />
           <IconButton
             icon={muted ? VolumeX : Volume2}
             label={muted ? t('action.unmute') : t('action.mute')}
@@ -304,7 +295,7 @@ const THUMB_W = 24;
 const THUMB_H = 14;
 const RAIL = 5;
 
-function Progress({ player, uri, active }: { player: VideoPlayer; uri: string; active: boolean }) {
+function Progress({ player, uri }: { player: VideoPlayer; uri: string }) {
   const { color } = useTheme();
   const width = useSharedValue(0);
   const duration = useSharedValue(0);
@@ -320,7 +311,7 @@ function Progress({ player, uri, active }: { player: VideoPlayer; uri: string; a
 
   useEffect(() => {
     shown.value = 0;
-  }, [shown, uri, active]);
+  }, [shown, uri]);
 
   const seek = useCallback(
     (time: number) => {
