@@ -37,7 +37,7 @@ export const STRIP_SHARE = SHARE;
 const WINDOW = 14;
 
 export function stripBottom(bottomInset: number, landscape: boolean): number {
-  return bottomInset + (landscape ? space.s1 : space.s2);
+  return landscape ? 0 : bottomInset + space.s2;
 }
 
 type ItemProps = {
