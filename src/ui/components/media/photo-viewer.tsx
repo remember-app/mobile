@@ -401,7 +401,7 @@ export function PhotoViewer({
                     onTap={() => setChrome((shown) => !shown)}
                     onZoomed={setZoomed}
                     active={at === index}
-                    visible={chrome && !zoomed && at === index}
+                    visible={chrome && !zoomed && at === index && !scrolling}
                     muted={muted}
                     onMutedChange={setMuted}
                     speed={speedMode ? 2 : 1}

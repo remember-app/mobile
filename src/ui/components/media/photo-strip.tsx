@@ -1,4 +1,3 @@
-import { Image as ExpoImage } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
   type NativeScrollEvent,
@@ -64,17 +63,18 @@ function StripItem({ index, photo, lead, scrollX, expand, onSelect }: ItemProps)
     <Animated.View style={[styles.item, style]}>
       <Pressable onPress={() => onSelect(index)} style={styles.press}>
         <View style={styles.reveal}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: color.raise }]} />
           {(photo.thumb ?? photo.source) ? (
             <Image
               source={photo.thumb ?? photo.source}
               group={photo.projectId}
-              style={StyleSheet.absoluteFill}
+              style={styles.fill}
               contentFit="cover"
               cachePolicy="memory-disk"
               recyclingKey={photo.id}
             />
-          ) : null}
+          ) : (
+            <View style={[styles.fill, { backgroundColor: color.raise }]} />
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -163,21 +163,7 @@ export function PhotoStrip({
     onSettle(next);
   };
 
-  const window = Math.ceil(viewWidth / STRIP_PITCH / 2) + 12;
-  const prefetched = useRef(new Set<string>());
-  useEffect(() => {
-    const prefetchFrom = Math.max(0, center - window - 12);
-    const prefetchTo = Math.min(count - 1, center + window + 12);
-    const urls: string[] = [];
-    for (let at = prefetchFrom; at <= prefetchTo; at += 1) {
-      const source = photos[at]?.thumb ?? photos[at]?.source;
-      if (typeof source !== 'string' || prefetched.current.has(source)) continue;
-      prefetched.current.add(source);
-      urls.push(source);
-    }
-    if (urls.length > 0) void ExpoImage.prefetch(urls, 'memory-disk');
-  }, [center, count, photos, window]);
-
+  const window = Math.ceil(viewWidth / STRIP_PITCH / 2) + 2;
   const from = Math.max(0, center - window);
   const to = Math.min(count - 1, center + window);
   const items = [];
