@@ -40,7 +40,8 @@ export function ProjectHeader({
   const [head, setHead] = useState(0);
   const side = space.s4 + 44 + space.s3;
   const widest = Math.max(0, full - side * 2);
-  const collapsed = Math.min(head > 0 ? head : widest, widest);
+  // рамка капсулы отнимает 2 px у текста — иначе он обрезается раньше максимума
+  const collapsed = Math.min(head > 0 ? head : widest, widest) + 2;
 
   const capsule = useAnimatedStyle(() => {
     const p = progress.value;
