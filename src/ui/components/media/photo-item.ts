@@ -1,11 +1,5 @@
 import type { DeviceAsset } from '@/integrations/media-library';
-import {
-  type Item,
-  itemDate,
-  itemPlayback,
-  itemPreview,
-  itemSource,
-} from '@/models';
+import { type Item, itemDate, itemPlayback, itemPreview, itemSource } from '@/models';
 import { duration } from '@/ui/format';
 
 import type { Photo } from './photo-grid';

@@ -125,10 +125,10 @@ export function CodeField({
           value={value}
           onChangeText={(next) =>
             onChangeText(
-              (alnum ? next.toUpperCase().replace(/[^0-9A-Z]/g, '') : next.replace(/\D/g, '')).slice(
-                0,
-                length,
-              ),
+              (alnum
+                ? next.toUpperCase().replace(/[^0-9A-Z]/g, '')
+                : next.replace(/\D/g, '')
+              ).slice(0, length),
             )
           }
           keyboardType={alnum ? 'default' : 'number-pad'}
