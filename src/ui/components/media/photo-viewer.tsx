@@ -108,6 +108,7 @@ export function PhotoViewer({
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
   const [chrome, setChrome] = useState(true);
+  const [muted, setMuted] = useState(false);
   const progress = useSharedValue(grows ? 0 : 1);
   const flight = useSharedValue(0);
   const fromY = useSharedValue(0);
@@ -397,6 +398,8 @@ export function PhotoViewer({
                     active={at === index}
                     settled={!scrolling}
                     visible={chrome && !zoomed && at === index && !scrolling}
+                    muted={muted}
+                    onMutedChange={setMuted}
                   />
                 ) : (
                   <Zoomable

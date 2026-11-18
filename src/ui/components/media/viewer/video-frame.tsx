@@ -42,6 +42,8 @@ export function VideoFrame({
   active,
   settled,
   visible,
+  muted,
+  onMutedChange,
 }: {
   photo: ViewerPhoto;
   width: number;
@@ -57,6 +59,8 @@ export function VideoFrame({
   active: boolean;
   settled: boolean;
   visible: boolean;
+  muted: boolean;
+  onMutedChange: (value: boolean) => void;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
   const videoBox = boxFor(mediaSize(photo), width, height);
@@ -104,6 +108,8 @@ export function VideoFrame({
               active={live}
               onTap={onTap}
               visible={visible}
+              muted={muted}
+              onMutedChange={onMutedChange}
               zoomStyle={zoomStyle}
             />
             {live || !(photo.thumb ?? photo.source) ? null : (
@@ -146,6 +152,8 @@ function Video({
   active,
   onTap,
   visible,
+  muted,
+  onMutedChange,
   zoomStyle,
 }: {
   uri: string;
@@ -155,12 +163,13 @@ function Video({
   active: boolean;
   onTap: () => void;
   visible: boolean;
+  muted: boolean;
+  onMutedChange: (value: boolean) => void;
   zoomStyle: AnimatedStyle<ViewStyle>;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(false);
   const player = useVideoPlayer(uri, (entry) => {
     entry.loop = true;
     entry.timeUpdateEventInterval = 0.02;
@@ -170,9 +179,9 @@ function Video({
     setPlaying(isPlaying);
   });
 
-  useEventListener(player, 'mutedChange', ({ muted: isMuted }) => {
-    setMuted(isMuted);
-  });
+  useEffect(() => {
+    player.muted = muted;
+  }, [muted, player]);
 
   useEffect(() => {
     if (active) player.play();
@@ -185,7 +194,7 @@ function Video({
   };
 
   const toggleMute = () => {
-    player.muted = !player.muted;
+    onMutedChange(!muted);
   };
 
   const barWidth = layout.controlsWidth;

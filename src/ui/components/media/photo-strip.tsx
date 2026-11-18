@@ -1,4 +1,3 @@
-import { Play } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   type NativeScrollEvent,
@@ -74,11 +73,6 @@ function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: 
             <View style={[styles.fill, { backgroundColor: color.raise }]} />
           )}
         </View>
-        {photo.video ? (
-          <View style={styles.play} pointerEvents="none">
-            <Play size={8} color="#ffffff" fill="#ffffff" />
-          </View>
-        ) : null}
       </Pressable>
     </Animated.View>
   );
@@ -219,16 +213,5 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
-  },
-  play: {
-    position: 'absolute',
-    left: 3,
-    bottom: 3,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 });
