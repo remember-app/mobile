@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import {
   addContact as apiAddContact,
   findUser as apiFindUser,
@@ -51,12 +51,6 @@ function persist(): void {
   writeCache(CACHE, { contacts: state.contacts, nextOffset: state.nextOffset });
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 function order(contacts: Contact[]): Contact[] {
   return [...contacts].sort(
     (left, right) =>
@@ -89,7 +83,7 @@ export async function loadContacts(force = false): Promise<void> {
   if (!force && state.status === 'ready') return;
   inFlight = (async () => {
     try {
-      const page = await listContacts(token());
+      const page = await listContacts(requireToken());
       emit({
         status: 'ready',
         contacts: page.items,
@@ -111,7 +105,7 @@ export async function loadMoreContacts(): Promise<void> {
   if (state.nextOffset === null) return;
   inFlight = (async () => {
     try {
-      const page = await listContacts(token(), { offset: state.nextOffset ?? undefined });
+      const page = await listContacts(requireToken(), { offset: state.nextOffset ?? undefined });
       const seen = new Set(state.contacts.map((contact) => contact.userId));
       emit({
         status: 'ready',
@@ -130,7 +124,7 @@ export async function loadMoreContacts(): Promise<void> {
 }
 
 export async function addContact(username: string, name: string | null = null): Promise<Contact> {
-  const contact = await apiAddContact(token(), { username, name });
+  const contact = await apiAddContact(requireToken(), { username, name });
   const exists = state.contacts.some((item) => item.userId === contact.userId);
   emit({
     ...state,
@@ -147,11 +141,11 @@ export async function addContact(username: string, name: string | null = null): 
 }
 
 export async function findPerson(username: string): Promise<PublicUser> {
-  return apiFindUser(token(), username);
+  return apiFindUser(requireToken(), username);
 }
 
 export async function renameContact(userId: UserId, name: string | null): Promise<Contact> {
-  const contact = await apiRenameContact(token(), userId, name);
+  const contact = await apiRenameContact(requireToken(), userId, name);
   emit({
     ...state,
     contacts: order(state.contacts.map((item) => (item.userId === userId ? contact : item))),
@@ -161,7 +155,7 @@ export async function renameContact(userId: UserId, name: string | null): Promis
 }
 
 export async function removeContact(userId: UserId): Promise<void> {
-  await apiRemoveContact(token(), userId);
+  await apiRemoveContact(requireToken(), userId);
   emit({ ...state, contacts: state.contacts.filter((item) => item.userId !== userId) });
   persist();
 }

@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 
-import { ScreenSkin } from '@/ui/kit/backdrop';
+import { ScreenSkin } from '@/ui/kit/chrome/backdrop';
 
 export default function OnboardingLayout() {
   return (

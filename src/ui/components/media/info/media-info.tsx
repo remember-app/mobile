@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { attachItems, detachItems, loadLabels, updateItem } from '@/functionality';
-import type { Item } from '@/models';
+import { type Item, itemDate } from '@/models';
 import type { LabelId, ProjectId } from '@/types/id';
 import { useLabels } from '@/ui/hooks';
 import { space } from '@/ui/theme';
@@ -26,7 +26,7 @@ export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Ite
 
   const media = item.media;
   const meta: PhotoMeta = {
-    capturedAt: media.capturedAt ?? item.createdAt,
+    capturedAt: itemDate(item),
     cameraModel: media.camera?.model ?? '',
     format: media.format,
     lens: '',

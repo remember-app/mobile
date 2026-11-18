@@ -1,4 +1,3 @@
-import { Image as ExpoImage } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
 import {
@@ -26,11 +25,11 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { confirmAction } from '@/ui/confirm';
 import { fullDay, time } from '@/ui/format';
-import { Avatar } from '@/ui/kit/avatar';
-import { BlurBar } from '@/ui/kit/blur-bar';
-import { BackButton, IconButton } from '@/ui/kit/button';
-import { Image } from '@/ui/kit/image';
-import { Text } from '@/ui/kit/text';
+import { BlurBar } from '@/ui/kit/chrome/blur-bar';
+import { BackButton, IconButton } from '@/ui/kit/controls/button';
+import { Avatar } from '@/ui/kit/primitives/avatar';
+import { Image } from '@/ui/kit/primitives/image';
+import { Text } from '@/ui/kit/primitives/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
@@ -178,17 +177,9 @@ export function PhotoViewer({
   }, [index]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setHdIndex(index);
-      const around: string[] = [];
-      for (let at = index - 2; at <= index + 2; at += 1) {
-        const uri = viewPhotos[at]?.source;
-        if (typeof uri === 'string') around.push(uri);
-      }
-      if (around.length > 0) void ExpoImage.prefetch(around, 'memory-disk').catch(() => undefined);
-    }, 600);
+    const timer = setTimeout(() => setHdIndex(index), 600);
     return () => clearTimeout(timer);
-  }, [index, viewPhotos]);
+  }, [index]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 

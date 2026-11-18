@@ -15,9 +15,10 @@ import type { Item } from '@/models';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 import { scoreColor } from '@/ui/format';
 import { useAnalysisJobs } from '@/ui/hooks';
-import { IconButton } from '@/ui/kit/button';
-import { Card } from '@/ui/kit/card';
-import { Text } from '@/ui/kit/text';
+import { IconButton } from '@/ui/kit/controls/button';
+import { Divider } from '@/ui/kit/primitives/bits';
+import { Card } from '@/ui/kit/primitives/card';
+import { Text } from '@/ui/kit/primitives/text';
 import { space, themed, useTheme } from '@/ui/theme';
 
 export function AnalysisBlock({ projectId, item }: { projectId: ProjectId; item: Item }) {
@@ -104,7 +105,7 @@ export function AnalysisBlock({ projectId, item }: { projectId: ProjectId; item:
           onPress={() => void start()}
         />
       </View>
-      <View style={styles.divider} />
+      <Divider hairline />
       <View style={styles.body}>
         {analysis &&
         (analysis.scoreImportance !== undefined || analysis.scoreQuality !== undefined) ? (
@@ -171,10 +172,6 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s2,
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: color.line,
     },
     body: {
       paddingHorizontal: space.s4,

@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Label } from '@/models';
 import type { LabelId } from '@/types/id';
-import { Text } from '@/ui/kit/text';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { LabelMark } from '../label';
+import { LabelMark } from '../common/label';
 
 export function LabelMenu({
   top,

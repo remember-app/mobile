@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import {
   createOwnSong as apiCreate,
   deleteOwnSong as apiDelete,
@@ -48,12 +48,6 @@ function set(next: OwnSongsState): void {
   notify();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 const byName = (items: Song[]): Song[] =>
   [...items].sort((left, right) => left.name.localeCompare(right.name));
 
@@ -69,7 +63,7 @@ export async function loadOwnSongs(force = false): Promise<void> {
   if (!force && state.status === 'ready') return;
   state = { ...state, status: 'loading', error: null };
   notify();
-  inFlight = listMySongs(token(), { limit: 100 })
+  inFlight = listMySongs(requireToken(), { limit: 100 })
     .then((page) => set({ status: 'ready', items: page.items, error: null }))
     .catch((error: unknown) => {
       state = { ...state, status: 'error', error };
@@ -93,7 +87,7 @@ export function rememberSongDuration(songId: SongId, seconds: number): void {
 }
 
 export async function createOwnSong(input: OwnSongInput): Promise<Song> {
-  const song = await apiCreate(token(), input);
+  const song = await apiCreate(requireToken(), input);
   set({ ...state, items: byName([...state.items, song]) });
   return song;
 }
@@ -102,7 +96,7 @@ export async function updateOwnSong(
   songId: SongId,
   patch: { name?: string; author?: string | null; coverId?: MediaId | null },
 ): Promise<Song> {
-  const song = await apiUpdate(token(), songId, patch);
+  const song = await apiUpdate(requireToken(), songId, patch);
   const known = state.items.find((item) => item.id === songId)?.duration ?? null;
   const merged = song.duration == null && known !== null ? { ...song, duration: known } : song;
   set({ ...state, items: byName(state.items.map((item) => (item.id === songId ? merged : item))) });
@@ -110,7 +104,7 @@ export async function updateOwnSong(
 }
 
 export async function deleteOwnSong(songId: SongId): Promise<void> {
-  await apiDelete(token(), songId);
+  await apiDelete(requireToken(), songId);
   set({ ...state, items: state.items.filter((item) => item.id !== songId) });
 }
 

@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { setItemLabels } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
@@ -57,12 +57,6 @@ function persist(projectId: ProjectId): void {
   writeCache(cacheName(projectId), { labels: current.labels, nextOffset: current.nextOffset });
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 function order(labels: Label[]): Label[] {
   return [...labels].sort(
     (left, right) =>
@@ -104,7 +98,7 @@ export async function loadLabels(projectId: ProjectId, force = false): Promise<v
   if (!force && labelsState(projectId).status === 'ready') return;
   const run = (async () => {
     try {
-      const page = await listLabels(token(), projectId);
+      const page = await listLabels(requireToken(), projectId);
       emit(projectId, {
         status: 'ready',
         labels: page.items,
@@ -133,7 +127,7 @@ export async function loadMoreLabels(projectId: ProjectId): Promise<void> {
   if (current.nextOffset === null) return;
   const run = (async () => {
     try {
-      const page = await listLabels(token(), projectId, {
+      const page = await listLabels(requireToken(), projectId, {
         offset: current.nextOffset ?? undefined,
       });
       const seen = new Set(current.labels.map((label) => label.id));
@@ -158,7 +152,7 @@ export async function createLabel(
   projectId: ProjectId,
   input: { name: string; color: `#${string}`; description?: string | null; shared: boolean },
 ): Promise<Label> {
-  const label = await apiCreateLabel(token(), projectId, {
+  const label = await apiCreateLabel(requireToken(), projectId, {
     name: input.name,
     colorHex: input.color,
     description: input.description ?? null,
@@ -180,7 +174,7 @@ export async function updateLabel(
   labelId: LabelId,
   patch: { name?: string; color?: `#${string}`; description?: string | null },
 ): Promise<Label> {
-  const label = await apiUpdateLabel(token(), projectId, labelId, {
+  const label = await apiUpdateLabel(requireToken(), projectId, labelId, {
     ...(patch.name === undefined ? {} : { name: patch.name }),
     ...(patch.color === undefined ? {} : { colorHex: patch.color }),
     ...(patch.description === undefined ? {} : { description: patch.description }),
@@ -195,7 +189,7 @@ export async function updateLabel(
 }
 
 export async function deleteLabel(projectId: ProjectId, labelId: LabelId): Promise<void> {
-  await apiDeleteLabel(token(), projectId, labelId);
+  await apiDeleteLabel(requireToken(), projectId, labelId);
   const current = labelsState(projectId);
   emit(projectId, {
     ...current,
@@ -209,7 +203,7 @@ export async function attachItems(
   labelId: LabelId,
   itemIds: ProjectItemId[],
 ): Promise<number> {
-  const { attached } = await attachLabelItems(token(), projectId, labelId, itemIds);
+  const { attached } = await attachLabelItems(requireToken(), projectId, labelId, itemIds);
   if (attached > 0) {
     setItemLabels(projectId, itemIds, labelId, true);
     await bumpCount(projectId, labelId, attached);
@@ -222,7 +216,7 @@ export async function detachItems(
   labelId: LabelId,
   itemIds: ProjectItemId[],
 ): Promise<number> {
-  const { detached } = await detachLabelItems(token(), projectId, labelId, itemIds);
+  const { detached } = await detachLabelItems(requireToken(), projectId, labelId, itemIds);
   if (detached > 0) {
     setItemLabels(projectId, itemIds, labelId, false);
     await bumpCount(projectId, labelId, -detached);

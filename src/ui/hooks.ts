@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import {
   analysisJobsState,
@@ -38,6 +38,7 @@ import {
   suggestionsState,
   systemMediaState,
   uploadsState,
+  watchMontages,
 } from '@/functionality';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 
@@ -45,11 +46,35 @@ function useStore<T>(subscribe: (listener: () => void) => () => void, snapshot: 
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
+/** Подписка на срез стора, зависящий от одного аргумента — проекта или его отсутствия. */
+function useScoped<A, T>(
+  subscribe: (listener: () => void) => () => void,
+  state: (arg: A) => T,
+  arg: A,
+): T {
+  return useStore(
+    subscribe,
+    useCallback(() => state(arg), [arg, state]),
+  );
+}
+
 export const useSession = () => useStore(subscribeSession, sessionState);
 
+export function useAccount() {
+  const session = useSession();
+  return 'account' in session ? session.account : undefined;
+}
+
+/** Один опрос монтажей на проект, сколько бы экранов его ни просили. */
+export function useMontagePolling(projectId: ProjectId, running: boolean): void {
+  useEffect(() => {
+    if (!running) return;
+    return watchMontages(projectId);
+  }, [projectId, running]);
+}
+
 export function useAnalysisJobs(projectId: ProjectId) {
-  const snapshot = useCallback(() => analysisJobsState(projectId), [projectId]);
-  return useStore(subscribeAnalysisJobs, snapshot);
+  return useScoped(subscribeAnalysisJobs, analysisJobsState, projectId);
 }
 export const useAvatar = () => useStore(subscribeAvatar, avatarState);
 export const useProjects = () => useStore(subscribeProjects, projectsState);
@@ -66,8 +91,7 @@ export function useProjectCard(projectId: ProjectId) {
 }
 
 export function useGallery(projectId: ProjectId | undefined) {
-  const snapshot = useCallback(() => galleryState(projectId), [projectId]);
-  return useStore(subscribeGallery, snapshot);
+  return useScoped(subscribeGallery, galleryState, projectId);
 }
 
 export function useItem(projectId: ProjectId, itemId: ProjectItemId) {
@@ -76,33 +100,27 @@ export function useItem(projectId: ProjectId, itemId: ProjectItemId) {
 }
 
 export function useMembers(projectId: ProjectId) {
-  const snapshot = useCallback(() => membersState(projectId), [projectId]);
-  return useStore(subscribeMembers, snapshot);
+  return useScoped(subscribeMembers, membersState, projectId);
 }
 
 export function useLabels(projectId: ProjectId) {
-  const snapshot = useCallback(() => labelsState(projectId), [projectId]);
-  return useStore(subscribeLabels, snapshot);
+  return useScoped(subscribeLabels, labelsState, projectId);
 }
 
 export function useInvite(projectId: ProjectId) {
-  const snapshot = useCallback(() => inviteState(projectId), [projectId]);
-  return useStore(subscribeInvites, snapshot);
+  return useScoped(subscribeInvites, inviteState, projectId);
 }
 
-export function useMontages(projectId: ProjectId) {
-  const snapshot = useCallback(() => montagesState(projectId), [projectId]);
-  return useStore(subscribeMontages, snapshot);
+export function useMontages(projectId: ProjectId | undefined) {
+  return useScoped(subscribeMontages, montagesState, projectId);
 }
 
 export function useMovies(projectId: ProjectId | undefined) {
-  const snapshot = useCallback(() => moviesState(projectId), [projectId]);
-  return useStore(subscribeMovies, snapshot);
+  return useScoped(subscribeMovies, moviesState, projectId);
 }
 
 export function useProjectSongs(projectId: ProjectId) {
-  const snapshot = useCallback(() => projectSongsState(projectId), [projectId]);
-  return useStore(subscribeSongs, snapshot);
+  return useScoped(subscribeSongs, projectSongsState, projectId);
 }
 
 export const useLibrarySongs = () => useStore(subscribeSongs, librarySongsState);

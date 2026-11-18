@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Analysis } from '@/models';
 import { scoreColor } from '@/ui/format';
-import { Image } from '@/ui/kit/image';
-import { Text } from '@/ui/kit/text';
+import { Image } from '@/ui/kit/primitives/image';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space } from '@/ui/theme';
 
 export function AnalysisRow({

@@ -41,6 +41,8 @@ export const en = {
     action: 'Action',
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
+    loadFailed: 'Could not load',
+    saveFailed: 'Could not save',
   },
   onboarding: {
     welcome: {
@@ -340,6 +342,7 @@ export const en = {
       framesTitle: 'Video shots',
       allFrames: 'All shots',
       download: 'Download',
+      downloading: 'Downloading…',
       noMusic: 'No music',
       unavailable: 'This video is unavailable',
     },

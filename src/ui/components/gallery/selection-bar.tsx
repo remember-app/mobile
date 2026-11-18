@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Label } from '@/models';
-import { Text } from '@/ui/kit/text';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { LabelMark } from '../label';
+import { LabelMark } from '../common/label';
 
 export function SelectionBar({
   top,

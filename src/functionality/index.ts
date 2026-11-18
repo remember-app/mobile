@@ -27,6 +27,7 @@ export {
   onSignOut,
   refreshSession,
   requestCode,
+  requireToken,
   restoreSession,
   type SessionState,
   sessionState,
@@ -80,7 +81,6 @@ export {
   clearCache,
   clearCacheGroups,
   ensureOriginal,
-  ensurePreview,
   ensureThumbnail,
   saveItemsToPhone,
   saveItemToPhone,
@@ -117,6 +117,7 @@ export {
   previewMontage,
   retryMontage,
   subscribeMontages,
+  watchMontages,
 } from './montage/montages';
 export {
   hydrateMovies,

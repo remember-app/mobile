@@ -21,8 +21,6 @@ const keep = (url: string | null, item: Item): Promise<string | null> =>
 export const ensureThumbnail = (item: Item): Promise<string | null> =>
   keep(item.links.thumbnail, item);
 
-export const ensurePreview = (item: Item): Promise<string | null> => keep(item.links.preview, item);
-
 export const ensureOriginal = (item: Item): Promise<string | null> =>
   keep(item.links.original, item);
 

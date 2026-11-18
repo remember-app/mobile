@@ -2,7 +2,7 @@ import { MapPin } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { Text } from '@/ui/kit/text';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type Place = {

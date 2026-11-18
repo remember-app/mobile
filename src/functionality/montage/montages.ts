@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
   createMontage as apiCreate,
@@ -34,12 +34,14 @@ const EMPTY: MontagesState = {
 const states = new Map<ProjectId, MontagesState>();
 const templates = new Map<ProjectId, MontageTemplate[]>();
 const inFlight = new Map<ProjectId, Promise<void>>();
+const pollers = new Map<ProjectId, { count: number; timer: ReturnType<typeof setInterval> }>();
 const listeners = new Set<() => void>();
+const POLL_MS = 3000;
 
 const cacheName = (projectId: ProjectId) => `montages-${projectId}`;
 
-export const montagesState = (projectId: ProjectId): MontagesState =>
-  states.get(projectId) ?? EMPTY;
+export const montagesState = (projectId: ProjectId | undefined): MontagesState =>
+  projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;
 
 export const subscribeMontages = (listener: () => void): (() => void) => {
   listeners.add(listener);
@@ -51,12 +53,6 @@ export const subscribeMontages = (listener: () => void): (() => void) => {
 function emit(projectId: ProjectId, next: MontagesState): void {
   states.set(projectId, next);
   for (const listener of listeners) listener();
-}
-
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
 }
 
 function revive(montage: Montage): Montage {
@@ -88,7 +84,7 @@ export async function loadMontages(projectId: ProjectId, force = false): Promise
   const current = montagesState(projectId);
   if (!force && current.status === 'ready') return;
   emit(projectId, { ...current, status: 'loading', error: null });
-  const request = apiList(token(), projectId)
+  const request = apiList(requireToken(), projectId)
     .then((page) => {
       emit(projectId, {
         status: 'ready',
@@ -107,11 +103,34 @@ export async function loadMontages(projectId: ProjectId, force = false): Promise
   return request;
 }
 
+/** Один опрос на проект, сколько бы экранов его ни просили одновременно. */
+export function watchMontages(projectId: ProjectId): () => void {
+  let poller = pollers.get(projectId);
+  if (!poller) {
+    poller = {
+      count: 0,
+      timer: setInterval(() => {
+        void loadMontages(projectId, true).catch(() => undefined);
+      }, POLL_MS),
+    };
+    pollers.set(projectId, poller);
+  }
+  poller.count += 1;
+  return () => {
+    const current = pollers.get(projectId);
+    if (!current) return;
+    current.count -= 1;
+    if (current.count > 0) return;
+    clearInterval(current.timer);
+    pollers.delete(projectId);
+  };
+}
+
 export async function createMontage(
   projectId: ProjectId,
   input: MontageCreateRequest,
 ): Promise<Montage> {
-  const created = await apiCreate(token(), projectId, input);
+  const created = await apiCreate(requireToken(), projectId, input);
   const current = montagesState(projectId);
   emit(projectId, {
     status: 'ready',
@@ -126,7 +145,7 @@ export async function createMontage(
 export async function loadMontageTemplates(projectId: ProjectId): Promise<MontageTemplate[]> {
   const cached = templates.get(projectId);
   if (cached) return cached;
-  const items = await apiTemplates(token(), projectId);
+  const items = await apiTemplates(requireToken(), projectId);
   templates.set(projectId, items);
   return items;
 }
@@ -135,11 +154,11 @@ export function previewMontage(
   projectId: ProjectId,
   input: Omit<MontageCreateRequest, 'payFrom'>,
 ): Promise<MontagePreviewResponse> {
-  return apiPreview(token(), projectId, input);
+  return apiPreview(requireToken(), projectId, input);
 }
 
 export async function retryMontage(projectId: ProjectId, montageId: MontageId): Promise<Montage> {
-  const updated = await apiRetry(token(), projectId, montageId);
+  const updated = await apiRetry(requireToken(), projectId, montageId);
   const current = montagesState(projectId);
   emit(projectId, {
     ...current,
@@ -150,6 +169,9 @@ export async function retryMontage(projectId: ProjectId, montageId: MontageId): 
 }
 
 function forgetMontages(projectId: string): void {
+  const poller = pollers.get(projectId as ProjectId);
+  if (poller) clearInterval(poller.timer);
+  pollers.delete(projectId as ProjectId);
   states.delete(projectId);
   templates.delete(projectId as ProjectId);
   removeCache(cacheName(projectId));
@@ -157,6 +179,8 @@ function forgetMontages(projectId: string): void {
 }
 
 export function clearMontages(): void {
+  for (const poller of pollers.values()) clearInterval(poller.timer);
+  pollers.clear();
   for (const projectId of states.keys()) removeCache(cacheName(projectId));
   states.clear();
   templates.clear();

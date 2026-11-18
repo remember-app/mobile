@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
   attachSong as apiAttachSong,
@@ -55,12 +55,6 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 function persistProject(projectId: ProjectId): void {
   const current = projectSongsState(projectId);
   writeCache(projectCache(projectId), {
@@ -100,7 +94,7 @@ export async function loadProjectSongs(projectId: ProjectId, force = false): Pro
   if (!force && current.status === 'ready') return;
   projectStates.set(projectId, { ...current, status: 'loading', error: null });
   notify();
-  const request = listProjectSongs(token(), projectId)
+  const request = listProjectSongs(requireToken(), projectId)
     .then((page) => {
       projectStates.set(projectId, {
         status: 'ready',
@@ -130,7 +124,7 @@ export async function loadLibrarySongs(force = false): Promise<void> {
   if (!force && library.status === 'ready') return;
   library = { ...library, status: 'loading', error: null };
   notify();
-  const request = listLibrarySongs(token())
+  const request = listLibrarySongs(requireToken())
     .then((page) => {
       library = {
         status: 'ready',
@@ -168,17 +162,17 @@ export function clearSongs(): void {
 }
 
 export async function attachProjectSong(projectId: ProjectId, songId: SongId): Promise<void> {
-  await apiAttachSong(token(), projectId, songId);
+  await apiAttachSong(requireToken(), projectId, songId);
   await loadProjectSongs(projectId, true);
 }
 
 export async function detachProjectSong(projectId: ProjectId, songId: SongId): Promise<void> {
-  await apiDetachSong(token(), projectId, songId);
+  await apiDetachSong(requireToken(), projectId, songId);
   await loadProjectSongs(projectId, true);
 }
 
 export async function songUrl(songId: SongId): Promise<string> {
-  return (await getSong(token(), songId)).url;
+  return (await getSong(requireToken(), songId)).url;
 }
 
 onProjectDeleted(forgetProjectSongs);

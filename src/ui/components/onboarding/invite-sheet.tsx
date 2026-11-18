@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 
 import { checkInvite, parseInvite, readText, stashInvite } from '@/functionality';
-import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { Button } from '@/ui/kit/button';
-import { Text } from '@/ui/kit/text';
+import { BottomSheet } from '@/ui/kit/chrome/bottom-sheet';
+import { Button } from '@/ui/kit/controls/button';
+import { Text } from '@/ui/kit/primitives/text';
 import { space } from '@/ui/theme';
 
-import { CodeInput, type CodeOutcome } from '../code-input';
+import { CodeInput, type CodeOutcome } from '../forms/code-input';
 
 type Props = {
   visible: boolean;

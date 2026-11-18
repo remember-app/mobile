@@ -1,0 +1,241 @@
+import { useRouter } from 'expo-router';
+import { Trash2 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { createLabel, deleteLabel, loadLabels } from '@/functionality';
+import type { Label } from '@/models';
+import type { ProjectId } from '@/types/id';
+import { CollapsibleList } from '@/ui/components/common/collapsible-list';
+import { LabelMark } from '@/ui/components/common/label';
+import { SwipeRow } from '@/ui/components/common/swipe-row';
+import { LabelRowsSkeleton } from '@/ui/components/feedback/skeletons';
+import { ArrowField } from '@/ui/components/forms/arrow-field';
+import { confirmAction } from '@/ui/confirm';
+import { useLabels } from '@/ui/hooks';
+import { BottomSheet } from '@/ui/kit/chrome/bottom-sheet';
+import { AddRow, Rows } from '@/ui/kit/primitives/bits';
+import { Card } from '@/ui/kit/primitives/card';
+import { Text } from '@/ui/kit/primitives/text';
+import { radius, space, themed } from '@/ui/theme';
+
+const SPECTRUM = Array.from({ length: 60 }, (_, index) => `hsl(${(index / 59) * 360}, 100%, 50%)`);
+const THUMB = 28;
+
+function hslToHex(hue: number, saturation = 1, lightness = 0.5): string {
+  const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const hp = (((hue % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const m = lightness - c / 2;
+  const pair = (value: number) =>
+    Math.round((value + m) * 255)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${pair(r)}${pair(g)}${pair(b)}`;
+}
+
+export function LabelsManager({ projectId }: { projectId: ProjectId }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const state = useLabels(projectId);
+  const labels = state.labels;
+  const loading = state.status === 'loading' && labels.length === 0;
+  const styles = useStyles();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [hue, setHue] = useState(205);
+
+  useEffect(() => {
+    void loadLabels(projectId);
+  }, [projectId]);
+
+  if (loading) return <LabelRowsSkeleton rows={4} />;
+
+  const create = async () => {
+    if (!name.trim()) return;
+    await createLabel(projectId, {
+      name: name.trim(),
+      color: hslToHex(hue) as `#${string}`,
+      shared: false,
+    });
+    setName('');
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <Card clip>
+        <AddRow label={t('labels.add')} onPress={() => setOpen(true)} />
+        {labels.length === 0 ? null : (
+          <CollapsibleList collapsed={224} expanded={392}>
+            <Rows items={labels} keyOf={(label) => label.id} hairline>
+              {(label) => (
+                <LabelRow
+                  label={label}
+                  onOpen={() =>
+                    router.navigate({
+                      pathname: '/project/[id]/label/[labelId]',
+                      params: { id: projectId, labelId: label.id },
+                    })
+                  }
+                  onDelete={() =>
+                    confirmAction({
+                      confirm: t('action.delete'),
+                      destructive: true,
+                      onConfirm: () => void deleteLabel(projectId, label.id),
+                    })
+                  }
+                />
+              )}
+            </Rows>
+          </CollapsibleList>
+        )}
+      </Card>
+      <BottomSheet visible={open} onClose={() => setOpen(false)}>
+        <View style={styles.form}>
+          <ColorSlider hue={hue} onChange={setHue} />
+          <ArrowField
+            label={t('labels.name')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('labels.namePlaceholder')}
+            valid={name.trim().length > 0}
+            onSubmit={() => void create()}
+          />
+        </View>
+      </BottomSheet>
+    </>
+  );
+}
+
+function LabelRow({
+  label,
+  onOpen,
+  onDelete,
+}: {
+  label: Label;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const styles = useStyles();
+  const row = (
+    <Pressable accessibilityRole="button" onPress={onOpen} style={styles.row}>
+      <View style={styles.slot}>
+        <LabelMark tint={label.color} size={30} />
+      </View>
+      <Text role="row" numberOfLines={1} style={styles.name}>
+        {label.name}
+      </Text>
+      <View style={styles.slot}>
+        <Text role="bodySm" tone="muted">
+          {label.itemCount}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  if (label.locked) return row;
+
+  return (
+    <SwipeRow tone="danger" icon={Trash2} onAction={onDelete}>
+      {row}
+    </SwipeRow>
+  );
+}
+
+function ColorSlider({ hue, onChange }: { hue: number; onChange: (hue: number) => void }) {
+  const styles = useStyles();
+  const [width, setWidth] = useState(0);
+  const pos = useSharedValue(0);
+
+  useEffect(() => {
+    if (width > 0) pos.value = (hue / 360) * width;
+  }, [width, hue, pos]);
+
+  const pick = (x: number) => {
+    'worklet';
+    const next = Math.min(Math.max(x, 0), width);
+    pos.value = next;
+    scheduleOnRN(onChange, (next / Math.max(1, width)) * 360);
+  };
+
+  const pan = Gesture.Pan()
+    .minDistance(0)
+    .onBegin((event) => pick(event.x))
+    .onUpdate((event) => pick(event.x));
+
+  const thumb = useAnimatedStyle(() => ({
+    transform: [{ translateX: pos.value - THUMB / 2 }],
+  }));
+
+  return (
+    <GestureDetector gesture={pan}>
+      <View style={styles.slider} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+        <View style={styles.spectrum}>
+          {SPECTRUM.map((color) => (
+            <View key={color} style={[styles.segment, { backgroundColor: color }]} />
+          ))}
+        </View>
+        <Animated.View style={[styles.thumb, { backgroundColor: hslToHex(hue) }, thumb]} />
+      </View>
+    </GestureDetector>
+  );
+}
+
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    row: {
+      minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+      paddingHorizontal: space.s4,
+      backgroundColor: color.surface,
+    },
+    name: {
+      flex: 1,
+    },
+    slot: {
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    form: {
+      gap: space.s3,
+    },
+    slider: {
+      height: 44,
+      justifyContent: 'center',
+    },
+    spectrum: {
+      height: 10,
+      flexDirection: 'row',
+      borderRadius: radius.pill,
+      overflow: 'hidden',
+    },
+    segment: {
+      flex: 1,
+    },
+    thumb: {
+      position: 'absolute',
+      width: THUMB,
+      height: THUMB,
+      borderRadius: THUMB / 2,
+      borderWidth: 3,
+      borderColor: '#FFFFFF',
+      top: (44 - THUMB) / 2,
+    },
+  }),
+);

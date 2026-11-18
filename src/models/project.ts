@@ -35,6 +35,11 @@ export type ProjectCard = ProjectSummary & {
 
 export type Project = ProjectSummary;
 
+/** Монтаж доступен, когда участник уже сдал материал. Одно правило на все экраны. */
+export function canCreateMontage(project: ProjectSummary | undefined): boolean {
+  return !!project && project.myRole !== 'viewer' && project.myContribution === 'done';
+}
+
 export type Member = {
   userId: UserId;
   username: string | null;

@@ -1,5 +1,5 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
-import { ensurePreview, ensureThumbnail } from '@/functionality/media/cache';
+import { ensureThumbnail } from '@/functionality/media/cache';
 import { refreshItem } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
@@ -85,7 +85,6 @@ async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promis
         if (ready && item) {
           readyPreviews.add(next.itemId);
           void ensureThumbnail(item).catch(() => undefined);
-          void ensurePreview(item).catch(() => undefined);
           if (activeProject !== next.projectId) dropReadyProjectPreviews(next.projectId);
           break;
         }

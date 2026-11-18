@@ -3,7 +3,9 @@ import type { Language } from '@/types/language';
 
 import type { Item } from './media';
 
-export type MontageStage = 'analysis' | 'preparation' | 'directing' | 'editing';
+export const MONTAGE_STAGES = ['analysis', 'preparation', 'directing', 'editing'] as const;
+
+export type MontageStage = (typeof MONTAGE_STAGES)[number];
 
 export type MontageStatus = 'queued' | 'processing' | 'done' | 'failed';
 
@@ -67,6 +69,10 @@ export function montageStage(montage: Montage): MontageStage {
   if (!montage.manifest.directingInput) return 'preparation';
   if (!montage.manifest.editingParams) return 'directing';
   return 'editing';
+}
+
+export function montageRunning(montage: Montage | undefined | null): boolean {
+  return !!montage && montage.status !== 'done' && montage.status !== 'failed';
 }
 
 export function montageItemIds(montage: Montage): string[] {

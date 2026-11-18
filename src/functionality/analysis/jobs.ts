@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { setItemAnalyses } from '@/functionality/media/gallery';
 import { type AnalysisJob, listAnalysisJobs as apiListAnalysisJobs } from '@/integrations/api';
 import type { ProjectId, ProjectItemId } from '@/types/id';
@@ -18,6 +18,7 @@ const listeners = new Set<() => void>();
 
 type Watch = { count: number; keep: number; timer: ReturnType<typeof setTimeout> | null };
 const watches = new Map<ProjectId, Watch>();
+const loads = new Map<ProjectId, Promise<AnalysisJob[]>>();
 
 export const analysisJobsState = (projectId: ProjectId): AnalysisJobsState =>
   states.get(projectId) ?? EMPTY;
@@ -34,19 +35,21 @@ function emit(projectId: ProjectId, next: AnalysisJobsState): void {
   for (const listener of listeners) listener();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 const live = (job: AnalysisJob): boolean => job.status === 'queued' || job.status === 'running';
 
-export async function loadAnalysisJobs(projectId: ProjectId): Promise<AnalysisJob[]> {
+export function loadAnalysisJobs(projectId: ProjectId): Promise<AnalysisJob[]> {
+  const running = loads.get(projectId);
+  if (running) return running;
+  const request = fetchAnalysisJobs(projectId).finally(() => loads.delete(projectId));
+  loads.set(projectId, request);
+  return request;
+}
+
+async function fetchAnalysisJobs(projectId: ProjectId): Promise<AnalysisJob[]> {
   const current = analysisJobsState(projectId);
   if (current.items.length === 0) emit(projectId, { ...current, status: 'loading', error: null });
   try {
-    const answer = await apiListAnalysisJobs(token(), projectId);
+    const answer = await apiListAnalysisJobs(requireToken(), projectId);
     const known = applied.get(projectId) ?? new Set<ProjectItemId>();
     const described = answer.items.flatMap((job) => {
       const itemId = job.itemId as ProjectItemId;
@@ -78,7 +81,10 @@ export function watchAnalysisJobs(projectId: ProjectId, keep = false): () => voi
   }
   watch.count += 1;
   if (keep) watch.keep += 1;
-  if (watch.count === 1) void tick(projectId);
+  if (watch.count === 1) {
+    const current = analysisJobsState(projectId);
+    if (current.status !== 'ready' || current.items.some(live)) void tick(projectId);
+  }
   return () => {
     const current = watches.get(projectId);
     if (!current) return;

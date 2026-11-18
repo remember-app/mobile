@@ -43,6 +43,8 @@ export const ru: typeof en = {
     action: 'Действие',
     prevMonth: 'Предыдущий месяц',
     nextMonth: 'Следующий месяц',
+    loadFailed: 'Не удалось загрузить',
+    saveFailed: 'Не удалось сохранить',
   },
   onboarding: {
     welcome: {
@@ -343,6 +345,7 @@ export const ru: typeof en = {
       framesTitle: 'Кадры ролика',
       allFrames: 'Все кадры',
       download: 'Скачать',
+      downloading: 'Скачиваем…',
       noMusic: 'Без музыки',
       unavailable: 'Ролик недоступен',
     },

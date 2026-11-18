@@ -7,10 +7,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { photo, space, themed } from '@/ui/theme';
 
-const clamp = (value: number, min: number, max: number) => {
-  'worklet';
-  return Math.min(Math.max(value, min), max);
-};
+import { clamp } from '../viewer/geometry';
 
 export function PhotoInfo({
   children,

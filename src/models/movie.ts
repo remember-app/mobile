@@ -26,3 +26,7 @@ export type Movie = {
   posterUrl: string | null;
   previewUrl: string | null;
 };
+
+export function movieOfMontage(movies: readonly Movie[], montageId: MontageId): Movie | undefined {
+  return movies.find((movie) => movie.montageId === montageId);
+}

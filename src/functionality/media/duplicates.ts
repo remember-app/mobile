@@ -1,4 +1,4 @@
-import type { Item } from '@/models';
+import { type Item, itemDate } from '@/models';
 import type { ProjectItemId } from '@/types/id';
 
 // dHash в 64 бита: до десяти различающихся битов считаем одним ракурсом.
@@ -33,7 +33,7 @@ export function nearDuplicateExtras(items: readonly Item[]): Set<ProjectItemId> 
     return [
       {
         id: item.id,
-        at: (item.media.capturedAt ?? item.createdAt).getTime(),
+        at: itemDate(item).getTime(),
         added: item.createdAt.getTime(),
         first,
         second,

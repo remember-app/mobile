@@ -11,8 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { LabelMark } from '@/ui/components/label';
-import { Text } from '@/ui/kit/text';
+import { LabelMark } from '@/ui/components/common/label';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type LabelChip = {

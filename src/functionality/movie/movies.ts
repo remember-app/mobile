@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
   deleteMovie as apiDelete,
@@ -49,12 +49,6 @@ function emit(projectId: ProjectId, next: MoviesState): void {
   for (const listener of listeners) listener();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 function revive(movie: Movie): Movie {
   return { ...movie, createdAt: new Date(movie.createdAt) };
 }
@@ -84,7 +78,7 @@ export async function loadMovies(projectId: ProjectId, force = false): Promise<v
   const current = moviesState(projectId);
   if (!force && current.status === 'ready') return;
   emit(projectId, { ...current, status: 'loading', error: null });
-  const request = apiList(token(), projectId)
+  const request = apiList(requireToken(), projectId)
     .then((page) => {
       emit(projectId, {
         status: 'ready',
@@ -108,7 +102,7 @@ export async function renameMovie(
   movieId: MovieId,
   name: string,
 ): Promise<Movie> {
-  const renamed = await apiRename(token(), projectId, movieId, name);
+  const renamed = await apiRename(requireToken(), projectId, movieId, name);
   const current = moviesState(projectId);
   emit(projectId, {
     ...current,
@@ -119,7 +113,7 @@ export async function renameMovie(
 }
 
 export async function removeMovie(projectId: ProjectId, movieId: MovieId): Promise<void> {
-  await apiDelete(token(), projectId, movieId);
+  await apiDelete(requireToken(), projectId, movieId);
   const current = moviesState(projectId);
   emit(projectId, {
     ...current,

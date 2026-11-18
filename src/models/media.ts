@@ -83,3 +83,8 @@ export type Item = {
 export function itemSource(item: Item): string | null {
   return item.links.thumbnail ?? item.links.preview ?? item.links.original;
 }
+
+/** Дата кадра: съёмки, если известна, иначе загрузки — одно правило на всё приложение. */
+export function itemDate(item: Item): Date {
+  return item.media.capturedAt ?? item.createdAt;
+}

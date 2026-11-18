@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
-import { IconButton } from '@/ui/kit/button';
-import type { IconComponent } from '@/ui/kit/icon';
+import { IconButton } from '@/ui/kit/controls/button';
+import type { IconComponent } from '@/ui/kit/primitives/icon';
 import { space } from '@/ui/theme';
 
 export function SelectionActions({

@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import { goBack } from '@/ui/back';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton } from '@/ui/kit/button';
-import { Empty } from '@/ui/kit/empty';
+import { AppBar, Board } from '@/ui/kit/chrome/bars';
+import { BackButton } from '@/ui/kit/controls/button';
+import { Empty } from '@/ui/kit/display/empty';
 
 export function BackBar({
   title,

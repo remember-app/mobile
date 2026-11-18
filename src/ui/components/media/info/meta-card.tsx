@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { dateTime, megabytes, number } from '@/ui/format';
-import { Card } from '@/ui/kit/card';
-import { Text } from '@/ui/kit/text';
+import { Divider } from '@/ui/kit/primitives/bits';
+import { Card } from '@/ui/kit/primitives/card';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, themed } from '@/ui/theme';
 
 import type { Place } from './place-map';
@@ -56,14 +57,14 @@ export function MetaCard({ meta, onEdit }: { meta: PhotoMeta; onEdit?: () => voi
           </Pressable>
         ) : null}
       </View>
-      <View style={styles.divider} />
+      <Divider hairline />
       <View style={styles.row}>
         <Text role="subtitle" numberOfLines={1} style={[styles.grow, styles.paper]}>
           {meta.cameraModel}
         </Text>
         <Chip text={meta.format} />
       </View>
-      <View style={styles.divider} />
+      <Divider hairline />
       <View style={styles.block}>
         <View style={styles.blockRow}>
           <View style={styles.lines}>
@@ -77,7 +78,7 @@ export function MetaCard({ meta, onEdit }: { meta: PhotoMeta; onEdit?: () => voi
           {meta.standard ? <Chip text={t('photo.standard')} /> : null}
         </View>
       </View>
-      <View style={styles.divider} />
+      <Divider hairline />
       <View style={styles.exposure}>
         {exposure.map((part, index) => (
           <View key={part} style={[styles.exposureCell, index > 0 ? styles.exposureLine : null]}>
@@ -113,10 +114,6 @@ const useStyles = themed(({ color }) =>
     },
     grow: {
       flex: 1,
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: color.line,
     },
     block: {
       paddingHorizontal: space.s4,

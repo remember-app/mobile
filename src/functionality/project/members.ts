@@ -1,4 +1,4 @@
-import { currentToken, onSignOut, sessionState } from '@/functionality/auth/session';
+import { onSignOut, requireToken, sessionState } from '@/functionality/auth/session';
 import {
   addMember as apiAddMember,
   removeMember as apiRemoveMember,
@@ -56,12 +56,6 @@ function persist(projectId: ProjectId): void {
   writeCache(cacheName(projectId), { members: current.members, nextOffset: current.nextOffset });
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 function order(members: Member[]): Member[] {
   return [...members].sort(
     (left, right) =>
@@ -109,7 +103,7 @@ export async function loadMembers(projectId: ProjectId, force = false): Promise<
   if (!force && membersState(projectId).status === 'ready') return;
   const run = (async () => {
     try {
-      const page = await listMembers(token(), projectId);
+      const page = await listMembers(requireToken(), projectId);
       emit(projectId, {
         status: 'ready',
         members: page.items,
@@ -138,7 +132,7 @@ export async function loadMoreMembers(projectId: ProjectId): Promise<void> {
   if (current.nextOffset === null) return;
   const run = (async () => {
     try {
-      const page = await listMembers(token(), projectId, {
+      const page = await listMembers(requireToken(), projectId, {
         offset: current.nextOffset ?? undefined,
       });
       const seen = new Set(current.members.map((member) => member.userId));
@@ -164,7 +158,7 @@ export async function addMember(
   username: string,
   role: Role,
 ): Promise<Member> {
-  const member = await apiAddMember(token(), projectId, { username, role });
+  const member = await apiAddMember(requireToken(), projectId, { username, role });
   const current = membersState(projectId);
   const exists = current.members.some((item) => item.userId === member.userId);
   if (current.status !== 'ready') {
@@ -187,7 +181,7 @@ export async function addMember(
 }
 
 export async function setRole(projectId: ProjectId, userId: UserId, role: Role): Promise<Member> {
-  const member = await apiSetMemberRole(token(), projectId, userId, role);
+  const member = await apiSetMemberRole(requireToken(), projectId, userId, role);
   const current = membersState(projectId);
   if (current.status === 'ready') {
     emit(projectId, {
@@ -201,7 +195,7 @@ export async function setRole(projectId: ProjectId, userId: UserId, role: Role):
 
 export async function removeMember(projectId: ProjectId, userId: UserId): Promise<void> {
   const removed = memberById(projectId, userId);
-  await apiRemoveMember(token(), projectId, userId);
+  await apiRemoveMember(requireToken(), projectId, userId);
   const current = membersState(projectId);
   if (current.status === 'ready') {
     emit(projectId, {
@@ -223,7 +217,7 @@ export async function setContribution(
   const current = sessionState();
   const userId = 'account' in current ? current.account.id : undefined;
   const before = userId ? memberById(projectId, userId)?.contribution : undefined;
-  const contribution = await apiSetContribution(token(), projectId, status);
+  const contribution = await apiSetContribution(requireToken(), projectId, status);
   if (userId) {
     const state = membersState(projectId);
     if (state.status === 'ready') {

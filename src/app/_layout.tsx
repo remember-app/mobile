@@ -22,15 +22,21 @@ import { refreshScreen } from '@/functionality/screen-refresh';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { health } from '@/integrations/api';
 import type { ProjectId } from '@/types/id';
-import { NoConnection } from '@/ui/components/no-connection';
-import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
+import { maybeCloseOpenRows } from '@/ui/components/common/swipe-row';
+import { NetworkBanner } from '@/ui/components/feedback/network-banner';
+import { NoConnection } from '@/ui/components/feedback/no-connection';
 import { useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
-import { ScreenSkin } from '@/ui/kit/backdrop';
-import { preloadWallpapers } from '@/ui/kit/wallpaper';
+import { ScreenSkin } from '@/ui/kit/chrome/backdrop';
+import { preloadWallpapers } from '@/ui/kit/internal/wallpaper';
 import { useTheme } from '@/ui/theme';
 
 void SplashScreen.preventAutoHideAsync();
+
+/** Route groups like `(account)` are invisible in the URL, so they must not reach the wallpaper. */
+function withoutGroups(name: string): string {
+  return name.replace(/\([^)]*\)\//g, '');
+}
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -135,7 +141,7 @@ export default function RootLayout() {
                     }}
                     screenLayout={({ route, children }) => (
                       <ScreenSkin
-                        routeName={route.name}
+                        routeName={withoutGroups(route.name)}
                         projectId={(route.params as { id?: ProjectId } | undefined)?.id}
                       >
                         {children}
@@ -143,6 +149,7 @@ export default function RootLayout() {
                     )}
                   />
                 )}
+                <NetworkBanner />
               </View>
             </ThemeProvider>
           </SafeAreaProvider>

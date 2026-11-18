@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { Text } from '@/ui/kit/text';
+import { Text } from '@/ui/kit/primitives/text';
 import { useTheme } from '@/ui/theme';
 
 const COLORS = ['spark', 'accent', 'danger', 'paper', 'quote'] as const;

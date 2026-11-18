@@ -18,8 +18,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { resolveDeviceAsset } from '@/functionality';
 import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
-import { IconButton } from '@/ui/kit/button';
-import { Image } from '@/ui/kit/image';
+import { IconButton } from '@/ui/kit/controls/button';
+import { Image } from '@/ui/kit/primitives/image';
 import { radius, space, useTheme } from '@/ui/theme';
 
 import { STRIP_HEIGHT, STRIP_SHARE } from '../photo-strip';
@@ -27,6 +27,7 @@ import { boxFor, clamp, mediaSize } from './geometry';
 import { verticalGestures } from './gestures';
 import { viewerStyles } from './styles';
 import type { Box, ViewerPhoto } from './types';
+import { useZoom } from './zoom';
 
 export function VideoFrame({
   photo,
@@ -58,33 +59,16 @@ export function VideoFrame({
   visible: boolean;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
-  const [zoomed, setZoomed] = useState(false);
   const videoBox = boxFor(mediaSize(photo), width, height);
-  const scale = useSharedValue(1);
-  const x = useSharedValue(0);
-  const y = useSharedValue(0);
-  const fromScale = useSharedValue(1);
-  const fromX = useSharedValue(0);
-  const fromY = useSharedValue(0);
-  const fromFocalX = useSharedValue(0);
-  const fromFocalY = useSharedValue(0);
-  const pinching = useSharedValue(false);
-  const notified = useSharedValue(false);
-
-  const change = useCallback(
-    (value: boolean) => {
-      setZoomed(value);
-      onZoomed(value);
-    },
-    [onZoomed],
-  );
+  const { zoomed, pinch, move, zoomStyle } = useZoom({ width, height, info, onZoomed });
 
   useEffect(() => {
     if (!photo.assetId) {
       const group = photo.projectId ?? null;
       const url = photo.playbackUrl;
-      setUri(url ? (cachedUrl(url, group) ?? url) : null);
-      if (url && !cachedUrl(url, group)) void keepUrl(url, group);
+      const local = url ? cachedUrl(url, group) : null;
+      setUri(local ?? url ?? null);
+      if (active && url && !local) void keepUrl(url, group);
       return;
     }
     let live = true;
@@ -97,78 +81,7 @@ export function VideoFrame({
     return () => {
       live = false;
     };
-  }, [photo.assetId, photo.playbackUrl, photo.projectId]);
-
-  const pinch = Gesture.Pinch()
-    .enabled(!info)
-    .onStart((event) => {
-      pinching.value = true;
-      notified.value = false;
-      fromScale.value = scale.value;
-      fromX.value = x.value;
-      fromY.value = y.value;
-      fromFocalX.value = event.focalX;
-      fromFocalY.value = event.focalY;
-    })
-    .onUpdate((event) => {
-      const next = clamp(fromScale.value * event.scale, 1, 5);
-      const ratio = next / fromScale.value;
-      const maxX = (width * (next - 1)) / 2;
-      const maxY = (height * (next - 1)) / 2;
-      x.value = clamp(
-        event.focalX - width / 2 - ratio * (fromFocalX.value - width / 2 - fromX.value),
-        -maxX,
-        maxX,
-      );
-      y.value = clamp(
-        event.focalY - height / 2 - ratio * (fromFocalY.value - height / 2 - fromY.value),
-        -maxY,
-        maxY,
-      );
-      scale.value = next;
-      if (next > 1.02 && !notified.value) {
-        notified.value = true;
-        scheduleOnRN(change, true);
-      }
-    })
-    .onEnd(() => {
-      pinching.value = false;
-      if (scale.value <= 1.02) {
-        scale.value = withTiming(1);
-        x.value = withTiming(0);
-        y.value = withTiming(0);
-        scheduleOnRN(change, false);
-      } else {
-        const maxX = (width * (scale.value - 1)) / 2;
-        const maxY = (height * (scale.value - 1)) / 2;
-        x.value = clamp(x.value, -maxX, maxX);
-        y.value = clamp(y.value, -maxY, maxY);
-        scheduleOnRN(change, true);
-      }
-    })
-    .onFinalize(() => {
-      pinching.value = false;
-    });
-
-  const move = Gesture.Pan()
-    .enabled(zoomed)
-    .maxPointers(1)
-    .onStart(() => {
-      if (pinching.value) return;
-      fromX.value = x.value;
-      fromY.value = y.value;
-    })
-    .onUpdate((event) => {
-      if (pinching.value) return;
-      const maxX = (width * (scale.value - 1)) / 2;
-      const maxY = (height * (scale.value - 1)) / 2;
-      x.value = clamp(fromX.value + event.translationX, -maxX, maxX);
-      y.value = clamp(fromY.value + event.translationY, -maxY, maxY);
-    });
-
-  const zoomStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
-  }));
+  }, [active, photo.assetId, photo.playbackUrl, photo.projectId]);
 
   const { openInfo, closeInfo, dismiss } = verticalGestures({
     height,
@@ -204,10 +117,10 @@ export function VideoFrame({
               visible={visible}
               zoomStyle={zoomStyle}
             />
-            {live || !photo.source ? null : (
+            {live || !(photo.thumb ?? photo.source) ? null : (
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <Image
-                  source={photo.source}
+                  source={photo.thumb ?? photo.source}
                   group={photo.projectId}
                   style={StyleSheet.absoluteFill}
                   contentFit="contain"
@@ -216,11 +129,11 @@ export function VideoFrame({
               </View>
             )}
           </>
-        ) : photo.source ? (
+        ) : (photo.thumb ?? photo.source) ? (
           <View style={videoBox}>
             <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
               <Image
-                source={photo.source}
+                source={photo.thumb ?? photo.source}
                 group={photo.projectId}
                 style={StyleSheet.absoluteFill}
                 contentFit="contain"

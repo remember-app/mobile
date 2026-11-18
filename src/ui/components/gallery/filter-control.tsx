@@ -4,10 +4,10 @@ import { Pressable, StyleSheet } from 'react-native';
 import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import type { Label, Member } from '@/models';
-import { Icon } from '@/ui/kit/icon';
+import { Icon } from '@/ui/kit/primitives/icon';
 import { useTheme } from '@/ui/theme';
 
-import { GalleryFiltersPanel, type GalleryFiltersValue } from '../gallery-filters';
+import { GalleryFiltersPanel, type GalleryFiltersValue } from './gallery-filters';
 
 const HEIGHT = 288;
 

@@ -1,4 +1,4 @@
-import { type Item, itemSource } from '@/models';
+import { type Item, itemDate, itemSource } from '@/models';
 import { duration } from '@/ui/format';
 
 import type { Photo } from './photo-grid';
@@ -19,7 +19,7 @@ export function tileOf(item: Item): Photo {
     note: video && item.media.duration !== null ? duration(item.media.duration) : undefined,
     width: item.media.dimensions?.width,
     height: item.media.dimensions?.height,
-    capturedAt: item.media.capturedAt,
+    capturedAt: itemDate(item),
   };
 }
 
@@ -29,10 +29,11 @@ export function viewerOf(item: Item): ViewerPhoto {
     id: item.id,
     projectId: item.projectId,
     source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
+    thumb: item.links.thumbnail,
     video,
     playbackUrl: video ? (item.links.preview ?? item.links.original) : null,
     width: item.media.dimensions?.width,
     height: item.media.dimensions?.height,
-    capturedAt: item.media.capturedAt,
+    capturedAt: itemDate(item),
   };
 }

@@ -4,6 +4,7 @@ export type ViewerPhoto = {
   id: string;
   projectId?: string | null;
   source: ImageSource | string | null;
+  thumb?: ImageSource | string | null;
   original?: string | null;
   width?: number;
   height?: number;

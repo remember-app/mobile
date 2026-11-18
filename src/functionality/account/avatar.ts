@@ -1,4 +1,9 @@
-import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
+import {
+  currentToken,
+  onSignOut,
+  refreshSession,
+  requireToken,
+} from '@/functionality/auth/session';
 import { removeAvatar as apiRemoveAvatar, getAvatar, setAvatar } from '@/integrations/api';
 import type { MediaId } from '@/types/id';
 
@@ -26,13 +31,17 @@ function emit(next: AvatarState): void {
   for (const listener of listeners) listener();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
+let loading: Promise<void> | null = null;
+
+export function loadAvatar(): Promise<void> {
+  if (loading) return loading;
+  loading = fetchAvatar().finally(() => {
+    loading = null;
+  });
+  return loading;
 }
 
-export async function loadAvatar(): Promise<void> {
+async function fetchAvatar(): Promise<void> {
   const value = currentToken();
   if (!value) {
     emit({ url: null, status: 'idle' });
@@ -48,20 +57,20 @@ export async function loadAvatar(): Promise<void> {
 }
 
 export async function uploadAvatar(uri: string, fileName: string): Promise<void> {
-  const value = token();
+  const value = requireToken();
   const mediaId = await uploadFileOnce(value, 'photo', uri, fileName);
   await applyAvatar(mediaId);
 }
 
 export async function applyAvatar(mediaId: MediaId): Promise<void> {
-  const value = token();
+  const value = requireToken();
   const { url } = await setAvatar(value, mediaId);
   emit({ url, status: 'idle' });
   await refreshSession();
 }
 
 export async function removeAvatar(): Promise<void> {
-  await apiRemoveAvatar(token());
+  await apiRemoveAvatar(requireToken());
   emit({ url: null, status: 'idle' });
   await refreshSession();
 }

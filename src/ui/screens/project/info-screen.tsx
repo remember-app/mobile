@@ -1,0 +1,248 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Coins, HardDrive, Settings2, Users } from 'lucide-react-native';
+import { type ReactNode, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { loadMembers, loadProjects, shareProjectConsumables } from '@/functionality';
+import type { ProjectId } from '@/types/id';
+import { StatRing } from '@/ui/components/common/stat-ring';
+import { ProjectMusic } from '@/ui/components/music/project-music';
+import { MiniPlayer, useSongPlayer } from '@/ui/components/music/song-player';
+import { MemberList } from '@/ui/components/people/member-list';
+import { MemberSheet } from '@/ui/components/people/member-sheet';
+import { InviteBlocks } from '@/ui/components/project/invite-blocks';
+import { LabelsManager } from '@/ui/components/project/labels-manager';
+import { confirmAction } from '@/ui/confirm';
+import { number } from '@/ui/format';
+import { useAccount, useMembers, useProjectCard } from '@/ui/hooks';
+import { Board, pageBody } from '@/ui/kit/chrome/bars';
+import { BottomSheet } from '@/ui/kit/chrome/bottom-sheet';
+import { Button, IconButton } from '@/ui/kit/controls/button';
+import { Slider } from '@/ui/kit/controls/slider';
+import { Card } from '@/ui/kit/primitives/card';
+import { Text } from '@/ui/kit/primitives/text';
+import { BackBar, Missing } from '@/ui/screens/chrome';
+import { space, themed, useTheme } from '@/ui/theme';
+
+type Metric = 'people' | 'gb' | 'tokens';
+
+const GIB = 1024 ** 3;
+
+export default function ProjectInfoScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { color } = useTheme();
+  const styles = useStyles();
+  const player = useSongPlayer();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const projectId = id as ProjectId;
+  const project = useProjectCard(projectId);
+  const membersState = useMembers(projectId);
+  const account = useAccount();
+  const [metric, setMetric] = useState<Metric | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [gbAmount, setGbAmount] = useState(1);
+  const [tokenAmount, setTokenAmount] = useState(10);
+
+  useEffect(() => {
+    void loadProjects();
+    void loadMembers(projectId);
+  }, [projectId]);
+
+  if (!project) {
+    return <Missing title={t('project.title')} message={t('project.notFound')} />;
+  }
+
+  const members = membersState.members;
+  const selected = selectedId
+    ? (members.find((member) => member.userId === selectedId) ?? null)
+    : null;
+  const storage = project.consumables.storage;
+  const tokens = project.consumables.tokens;
+  const ownStorage = account
+    ? Math.max(0, (account.consumables.storage.bytes - account.consumables.storage.spend) / GIB)
+    : 0;
+  const ownTokens = account
+    ? Math.max(0, account.consumables.tokens.tokens - account.consumables.tokens.spend)
+    : 0;
+  const gbMax = Math.max(1, Math.floor(ownStorage));
+  const gbValue = Math.min(gbAmount, gbMax);
+  const tokenMax = Math.max(1, Math.floor(ownTokens));
+  const tokenValue = Math.min(tokenAmount, tokenMax);
+  const used = storage.spend / GIB;
+  const capacity = storage.bytes / GIB;
+  const leftTokens = Math.max(0, tokens.tokens - tokens.spend);
+
+  const shareStorage = () => {
+    confirmAction({
+      confirm: t('info.share'),
+      onConfirm: () => {
+        void shareProjectConsumables(projectId, { storageBytes: gbValue * GIB }).then(() =>
+          setGbAmount(1),
+        );
+      },
+    });
+  };
+
+  const shareTokens = () => {
+    confirmAction({
+      confirm: t('info.share'),
+      onConfirm: () => {
+        void shareProjectConsumables(projectId, { tokens: tokenValue }).then(() =>
+          setTokenAmount(10),
+        );
+      },
+    });
+  };
+
+  return (
+    <View style={styles.root}>
+      <Board
+        body={player.song ? [pageBody, styles.bodyLifted] : pageBody}
+        bar={
+          <BackBar
+            title={project.title}
+            right={
+              <IconButton
+                icon={Settings2}
+                label={t('project.settings')}
+                tone="surface"
+                size={44}
+                onPress={() =>
+                  router.navigate({ pathname: '/project/[id]/settings', params: { id: projectId } })
+                }
+              />
+            }
+          />
+        }
+      >
+        <Card style={styles.stats}>
+          <Stat
+            icon={<Users size={26} color={color.paper} />}
+            value={project.memberCount > 0 ? project.sharedCount / project.memberCount : 0}
+            label={`${project.sharedCount} / ${project.memberCount}`}
+            onPress={() => setMetric('people')}
+          />
+          <Stat
+            icon={<HardDrive size={26} color={color.paper} />}
+            value={capacity > 0 ? used / capacity : 0}
+            label={`${number(used)} / ${number(capacity)}`}
+            onPress={() => setMetric('gb')}
+          />
+          <Stat
+            icon={<Coins size={26} color={color.paper} />}
+            value={tokens.tokens > 0 ? leftTokens / tokens.tokens : 0}
+            label={`${number(leftTokens)} / ${number(tokens.tokens)}`}
+            onPress={() => setMetric('tokens')}
+          />
+        </Card>
+
+        <MemberList
+          members={members}
+          loading={membersState.status === 'loading'}
+          onSelect={(member) => setSelectedId(member.userId)}
+          onAdd={() => setMetric('people')}
+        />
+
+        <LabelsManager projectId={projectId} />
+
+        <ProjectMusic projectId={projectId} player={player} />
+
+        <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
+
+        <BottomSheet visible={metric !== null} onClose={() => setMetric(null)}>
+          {metric === 'people' ? (
+            <InviteBlocks projectId={projectId} projectTitle={project.title} />
+          ) : null}
+          {metric === 'gb' ? (
+            <>
+              <Slider
+                value={gbValue}
+                onChange={setGbAmount}
+                min={1}
+                max={gbMax}
+                valueLabel={`${number(gbValue)} ${t('unit.gb')}`}
+                minLabel={`1 ${t('unit.gb')}`}
+                maxLabel={`${number(gbMax)} ${t('unit.gb')}`}
+                label={t('info.shareStorage')}
+              />
+              <Button
+                label={t('info.share')}
+                variant="secondary"
+                disabled={ownStorage < 1}
+                onPress={shareStorage}
+              />
+            </>
+          ) : null}
+          {metric === 'tokens' ? (
+            <>
+              <Slider
+                value={tokenValue}
+                onChange={setTokenAmount}
+                min={1}
+                max={tokenMax}
+                valueLabel={`${number(tokenValue)}`}
+                minLabel="1"
+                maxLabel={`${number(tokenMax)}`}
+                label={t('info.shareTokens')}
+              />
+              <Button
+                label={t('info.share')}
+                variant="secondary"
+                disabled={ownTokens < 1}
+                onPress={shareTokens}
+              />
+            </>
+          ) : null}
+        </BottomSheet>
+      </Board>
+
+      <MiniPlayer player={player} />
+    </View>
+  );
+}
+
+function Stat({
+  icon,
+  value,
+  label,
+  onPress,
+}: {
+  icon: ReactNode;
+  value: number;
+  label: string;
+  onPress: () => void;
+}) {
+  const styles = useStyles();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={styles.stat}>
+      <StatRing value={value} size={68} stroke={6}>
+        {icon}
+      </StatRing>
+      <Text role="meta" tone="muted">
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const useStyles = themed(() =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+    },
+    bodyLifted: {
+      paddingBottom: 120,
+    },
+    stats: {
+      flexDirection: 'row',
+      padding: space.s4,
+      gap: space.s3,
+    },
+    stat: {
+      flex: 1,
+      alignItems: 'center',
+      gap: space.s2,
+    },
+  }),
+);

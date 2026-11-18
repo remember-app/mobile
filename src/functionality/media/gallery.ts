@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
   downloadLinks as apiDownloadLinks,
@@ -35,6 +35,7 @@ const EMPTY: GalleryState = {
 
 const states = new Map<ProjectId, GalleryState>();
 const inFlight = new Map<ProjectId, Promise<void>>();
+const itemLoads = new Map<string, Promise<Item>>();
 const listeners = new Set<() => void>();
 
 const cacheName = (projectId: ProjectId) => `gallery-v2-${projectId}`;
@@ -68,12 +69,6 @@ function revive(item: Item): Item {
 function persist(projectId: ProjectId): void {
   const current = galleryState(projectId);
   writeCache(cacheName(projectId), { items: current.items, nextCursor: current.nextCursor });
-}
-
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
 }
 
 export function hydrateGallery(projectId: ProjectId): void {
@@ -164,7 +159,7 @@ export async function loadGallery(projectId: ProjectId, force = false): Promise<
     const current = galleryState(projectId);
     if (current.items.length === 0) emit(projectId, { ...current, status: 'loading', error: null });
     try {
-      const page = await listGallery(token(), projectId);
+      const page = await listGallery(requireToken(), projectId);
       emit(projectId, {
         status: 'ready',
         items: page.items,
@@ -193,7 +188,7 @@ export async function loadMoreGallery(projectId: ProjectId): Promise<void> {
   if (current.nextCursor === null) return;
   const run = (async () => {
     try {
-      const page = await listGallery(token(), projectId, {
+      const page = await listGallery(requireToken(), projectId, {
         cursor: current.nextCursor ?? undefined,
       });
       const seen = new Set(current.items.map((item) => item.id));
@@ -214,8 +209,20 @@ export async function loadMoreGallery(projectId: ProjectId): Promise<void> {
   return run;
 }
 
-export async function refreshGalleryAll(projectId: ProjectId): Promise<Item[]> {
-  const tokenValue = token();
+const allLoads = new Map<ProjectId, Promise<Item[]>>();
+
+export function refreshGalleryAll(projectId: ProjectId): Promise<Item[]> {
+  const running = allLoads.get(projectId);
+  if (running) return running;
+  const request = fetchGalleryAll(projectId).finally(() => allLoads.delete(projectId));
+  allLoads.set(projectId, request);
+  return request;
+}
+
+async function fetchGalleryAll(projectId: ProjectId): Promise<Item[]> {
+  const pending = inFlight.get(projectId);
+  if (pending) await pending.catch(() => undefined);
+  const tokenValue = requireToken();
   const items = new Map<ProjectItemId, Item>();
   let cursor: string | undefined;
   do {
@@ -235,10 +242,18 @@ export async function loadItem(projectId: ProjectId, itemId: ProjectItemId): Pro
   return refreshItem(projectId, itemId);
 }
 
-export async function refreshItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
-  const item = await getItem(token(), projectId, itemId);
-  mergeItem(projectId, item);
-  return item;
+export function refreshItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
+  const key = `${projectId}:${itemId}`;
+  const running = itemLoads.get(key);
+  if (running) return running;
+  const request = getItem(requireToken(), projectId, itemId)
+    .then((item) => {
+      mergeItem(projectId, item);
+      return item;
+    })
+    .finally(() => itemLoads.delete(key));
+  itemLoads.set(key, request);
+  return request;
 }
 
 export async function updateItem(
@@ -246,7 +261,7 @@ export async function updateItem(
   itemId: ProjectItemId,
   description: string | null,
 ): Promise<Item> {
-  const item = await updateItemDescription(token(), projectId, itemId, description);
+  const item = await updateItemDescription(requireToken(), projectId, itemId, description);
   mergeItem(projectId, item);
   return item;
 }
@@ -257,7 +272,7 @@ export async function updateMediaInfo(
   patch: MediaPatch,
 ): Promise<Item> {
   const item = itemById(projectId, itemId) ?? (await loadItem(projectId, itemId));
-  const media = await apiUpdateMedia(token(), projectId, item.media.id, patch);
+  const media = await apiUpdateMedia(requireToken(), projectId, item.media.id, patch);
   const updated = { ...item, media };
   mergeItem(projectId, updated);
   return updated;
@@ -267,13 +282,13 @@ export async function downloadItems(
   projectId: ProjectId,
   itemIds: ProjectItemId[],
 ): Promise<DownloadLink[]> {
-  return apiDownloadLinks(token(), projectId, itemIds);
+  return apiDownloadLinks(requireToken(), projectId, itemIds);
 }
 
 export async function removeItem(projectId: ProjectId, itemId: ProjectItemId): Promise<void> {
   const item = itemById(projectId, itemId);
   if (!item) return;
-  await deleteMedia(token(), projectId, item.media.id);
+  await deleteMedia(requireToken(), projectId, item.media.id);
   const current = galleryState(projectId);
   emit(projectId, {
     ...current,
@@ -291,7 +306,7 @@ export async function removeItems(
     return item ? [{ id, mediaId: item.media.id }] : [];
   });
   const results = await Promise.allSettled(
-    targets.map((target) => deleteMedia(token(), projectId, target.mediaId)),
+    targets.map((target) => deleteMedia(requireToken(), projectId, target.mediaId)),
   );
   const gone = new Set(
     targets.filter((_, at) => results[at]?.status === 'fulfilled').map((target) => target.id),

@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { Image } from '@/ui/kit/image';
+import { Image } from '@/ui/kit/primitives/image';
 import { useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
@@ -65,9 +65,9 @@ function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: 
     <Animated.View style={[styles.item, style]}>
       <Pressable onPress={() => onSelect(index)} style={styles.press}>
         <View style={styles.reveal}>
-          {photo.source ? (
+          {(photo.thumb ?? photo.source) ? (
             <Image
-              source={photo.source}
+              source={photo.thumb ?? photo.source}
               group={photo.projectId}
               style={styles.fill}
               contentFit="cover"

@@ -1,4 +1,4 @@
-import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
+import { onSignOut, refreshSession, requireToken } from '@/functionality/auth/session';
 import {
   acceptInvite as apiAcceptInvite,
   checkInvite as apiCheckInvite,
@@ -48,12 +48,6 @@ function emit(projectId: ProjectId, next: InviteState): void {
   for (const listener of listeners) listener();
 }
 
-function token(): string {
-  const value = currentToken();
-  if (!value) throw new Error('not signed in');
-  return value;
-}
-
 export function clearInvites(): void {
   states.clear();
   for (const listener of listeners) listener();
@@ -62,7 +56,7 @@ export function clearInvites(): void {
 export async function loadInvite(projectId: ProjectId): Promise<ProjectInvite> {
   emit(projectId, { ...inviteState(projectId), status: 'loading', error: null });
   try {
-    const invite = await getProjectInvite(token(), projectId);
+    const invite = await getProjectInvite(requireToken(), projectId);
     emit(projectId, { status: 'ready', invite, error: null });
     return invite;
   } catch (error) {
@@ -77,7 +71,7 @@ export async function rotateInvite(
 ): Promise<ProjectInvite> {
   emit(projectId, { ...inviteState(projectId), status: 'loading', error: null });
   try {
-    const invite = await rotateProjectInvite(token(), projectId, input);
+    const invite = await rotateProjectInvite(requireToken(), projectId, input);
     emit(projectId, { status: 'ready', invite, error: null });
     return invite;
   } catch (error) {
@@ -89,7 +83,7 @@ export async function rotateInvite(
 export async function createAppInvite(
   input: { maxUses?: number | null; expiresAt?: string | null } = {},
 ): Promise<AppInvite> {
-  return apiCreateAppInvite(token(), input);
+  return apiCreateAppInvite(requireToken(), input);
 }
 
 export async function checkInvite(inviteToken: string): Promise<void> {
@@ -97,7 +91,7 @@ export async function checkInvite(inviteToken: string): Promise<void> {
 }
 
 export async function acceptInvite(inviteToken: string): Promise<JoinResult> {
-  const result = await apiAcceptInvite(token(), inviteToken);
+  const result = await apiAcceptInvite(requireToken(), inviteToken);
   if ('project' in result) upsertProjectCard(result.project);
   else await refreshSession();
   return result;

@@ -59,6 +59,12 @@ export const subscribeSession = (listener: () => void): (() => void) => {
 
 export const currentToken = (): string | undefined => ('token' in state ? state.token : undefined);
 
+export function requireToken(): string {
+  const value = currentToken();
+  if (!value) throw new Error('not signed in');
+  return value;
+}
+
 function withAccount(token: string, account: Account): SessionState {
   return account.registered
     ? { status: 'signed-in', token, account }
@@ -145,7 +151,17 @@ export async function signOut(): Promise<void> {
   await forget();
 }
 
-export async function refreshSession(): Promise<void> {
+let refreshing: Promise<void> | null = null;
+
+export function refreshSession(): Promise<void> {
+  if (refreshing) return refreshing;
+  refreshing = fetchSession().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function fetchSession(): Promise<void> {
   const token = currentToken();
   if (!token) return;
   await keep(token, await getMe(token));

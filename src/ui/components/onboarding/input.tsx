@@ -1,10 +1,10 @@
 import { Keyboard, Pressable, StyleSheet, type TextInputProps, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Text } from '@/ui/kit/text';
+import { Text } from '@/ui/kit/primitives/text';
 import { space } from '@/ui/theme';
 
-import { ArrowField } from '../arrow-field';
+import { ArrowField } from '../forms/arrow-field';
 import { StepDots } from './steps';
 
 type Props = {

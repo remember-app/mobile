@@ -1,13 +1,12 @@
 import type { ImageSource } from 'expo-image';
 import { Check, CircleX, Star } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
-
-import { Avatar } from '@/ui/kit/avatar';
-import { CircularProgress } from '@/ui/kit/circular-progress';
-import { Image } from '@/ui/kit/image';
-import { Text } from '@/ui/kit/text';
+import { CircularProgress } from '@/ui/kit/display/circular-progress';
+import { Avatar } from '@/ui/kit/primitives/avatar';
+import { Image } from '@/ui/kit/primitives/image';
+import { Text } from '@/ui/kit/primitives/text';
 import { radius, useTheme } from '@/ui/theme';
-import { LabelMark } from '../label';
+import { LabelMark } from '../common/label';
 
 export type TileUpload = {
   progress: number;
