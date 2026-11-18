@@ -105,6 +105,7 @@ export function VideoFrame({
             visible={visible}
             muted={muted}
             onMutedChange={onMutedChange}
+            zoomed={zoomed}
             zoomStyle={zoomStyle}
           />
         ) : (photo.thumb ?? photo.source) ? (
@@ -137,6 +138,7 @@ function Video({
   visible,
   muted,
   onMutedChange,
+  zoomed,
   zoomStyle,
 }: {
   uri: string;
@@ -148,6 +150,7 @@ function Video({
   visible: boolean;
   muted: boolean;
   onMutedChange: (value: boolean) => void;
+  zoomed: boolean;
   zoomStyle: AnimatedStyle<ViewStyle>;
 }) {
   const { t } = useTranslation();
@@ -172,6 +175,7 @@ function Video({
       player.play();
     } else {
       player.pause();
+      player.playbackRate = 1;
       if (wasActive.current) player.currentTime = 0;
     }
     wasActive.current = active;
@@ -185,6 +189,24 @@ function Video({
   const toggleMute = () => {
     onMutedChange(!muted);
   };
+
+  const applyRate = useCallback(
+    (rate: number) => {
+      player.playbackRate = rate;
+    },
+    [player],
+  );
+  const edgeSpeed = () =>
+    Gesture.Pan()
+      .enabled(!zoomed)
+      .onStart(() => scheduleOnRN(applyRate, 2))
+      .onUpdate((event) =>
+        scheduleOnRN(applyRate, clamp(2 + event.translationX / SPEED_SPAN, 1, 3)),
+      )
+      .onEnd(() => scheduleOnRN(applyRate, 1))
+      .onFinalize(() => scheduleOnRN(applyRate, 1));
+  const leftSpeed = edgeSpeed();
+  const rightSpeed = edgeSpeed();
 
   const barWidth = layout.controlsWidth;
   const barBottom = layout.controlsBottom;
@@ -235,9 +257,18 @@ function Video({
           />
         </View>
       ) : null}
+      <GestureDetector gesture={leftSpeed}>
+        <View style={[styles.speedEdge, { left: 0 }]} />
+      </GestureDetector>
+      <GestureDetector gesture={rightSpeed}>
+        <View style={[styles.speedEdge, { right: 0 }]} />
+      </GestureDetector>
     </View>
   );
 }
+
+const SPEED_SPAN = 300;
+const EDGE_WIDTH = 44;
 
 const THUMB_W = 24;
 const THUMB_H = 14;
@@ -343,6 +374,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  speedEdge: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: EDGE_WIDTH,
   },
   controls: {
     position: 'absolute',
