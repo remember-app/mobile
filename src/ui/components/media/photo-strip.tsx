@@ -6,7 +6,6 @@ import {
   Pressable,
   type ScrollViewInstance,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -19,30 +18,19 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/primitives/image';
-import { space, useTheme } from '@/ui/theme';
+import { useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
+import { STRIP_BREADTH, STRIP_HEIGHT, type ViewerLayout } from './viewer/layout';
 import type { ViewerPhoto } from './viewer/types';
 
 const SELECTED = 40;
 const UNSELECTED = 30;
 const GAP = 12;
-const BREADTH = 40;
-export const STRIP_HEIGHT = 130;
 const RADIUS = 4;
-const SHARE = 0.8;
 const FADE = 36;
 export const STRIP_PITCH = UNSELECTED + GAP;
-export const STRIP_SHARE = SHARE;
 const WINDOW = 14;
-
-export function stripBottom(bottomInset: number, landscape: boolean): number {
-  return landscape ? 0 : bottomInset + space.s2;
-}
-
-export function stripThumbTop(bottomInset: number, landscape: boolean): number {
-  return stripBottom(bottomInset, landscape) + (STRIP_HEIGHT + BREADTH) / 2;
-}
 
 type ItemProps = {
   index: number;
@@ -99,6 +87,7 @@ function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: 
 type Props = {
   photos: readonly ViewerPhoto[];
   index: number;
+  layout: ViewerLayout;
   scroller: AnimatedRef<ScrollViewInstance>;
   active: SharedValue<number>;
   scrollX: SharedValue<number>;
@@ -109,15 +98,15 @@ type Props = {
 export function PhotoStrip({
   photos,
   index,
+  layout,
   scroller,
   active,
   scrollX,
   onScrolling,
   onSettle,
 }: Props) {
-  const { width: screen } = useWindowDimensions();
-  const viewWidth = screen * SHARE;
-  const inset = (screen - viewWidth) / 2;
+  const viewWidth = layout.stripWidth;
+  const inset = layout.stripInset;
   const count = photos.length;
   const lead = (viewWidth - UNSELECTED) / 2;
   const [center, setCenter] = useState(index);
@@ -217,8 +206,8 @@ const styles = StyleSheet.create({
   },
   item: {
     position: 'absolute',
-    top: (STRIP_HEIGHT - BREADTH) / 2,
-    height: BREADTH,
+    top: (STRIP_HEIGHT - STRIP_BREADTH) / 2,
+    height: STRIP_BREADTH,
     borderRadius: RADIUS,
     overflow: 'hidden',
   },
@@ -229,7 +218,7 @@ const styles = StyleSheet.create({
   },
   reveal: {
     width: SELECTED,
-    height: BREADTH,
+    height: STRIP_BREADTH,
   },
   fill: {
     flex: 1,

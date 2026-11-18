@@ -33,8 +33,9 @@ import { Text } from '@/ui/kit/primitives/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
-import { PhotoStrip, STRIP_PITCH, stripBottom } from './photo-strip';
+import { PhotoStrip, STRIP_PITCH } from './photo-strip';
 import { boxFor, mediaSize, targetFor } from './viewer/geometry';
+import { viewerLayout } from './viewer/layout';
 import type { ViewerPhoto } from './viewer/types';
 import { VideoFrame } from './viewer/video-frame';
 import { Zoomable } from './viewer/zoomable';
@@ -102,8 +103,7 @@ export function PhotoViewer({
   const currentPhoto = viewPhotos[index];
   const current = currentPhoto?.source ?? null;
   const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
-  const landscape = width > height;
-  const hudPad = landscape ? Math.max(insets.left, insets.right, space.s4) + space.s4 : space.s4;
+  const layout = viewerLayout(width, height, insets);
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
@@ -386,6 +386,7 @@ export function PhotoViewer({
                     photo={photo}
                     width={width}
                     height={height}
+                    layout={layout}
                     dragY={dragY}
                     lift={lift}
                     info={info}
@@ -487,7 +488,7 @@ export function PhotoViewer({
           style={[
             styles.strip,
             {
-              bottom: stripBottom(insets.bottom, landscape),
+              bottom: layout.stripBottom,
             },
             stripStyle,
           ]}
@@ -495,6 +496,7 @@ export function PhotoViewer({
           <PhotoStrip
             photos={viewPhotos}
             index={start}
+            layout={layout}
             scroller={stripRef}
             active={stripActive}
             scrollX={stripX}
@@ -507,10 +509,12 @@ export function PhotoViewer({
         <BlurBar
           edge="top"
           shade={false}
-          style={[styles.hud, { top: landscape ? space.s4 : 0, paddingHorizontal: hudPad }]}
+          style={[styles.hud, { top: layout.hudTop, paddingHorizontal: layout.hudSide }]}
         >
           <BackButton label={t('action.back')} size={44} onPress={leave} />
-          <View style={[styles.hudWords, { maxWidth: width - hudPad * 2 - 88 - HUD_GAP * 2 }]}>
+          <View
+            style={[styles.hudWords, { maxWidth: width - layout.hudSide * 2 - 88 - HUD_GAP * 2 }]}
+          >
             {currentPhoto?.capturedAt ? (
               <View
                 style={[

@@ -3,7 +3,7 @@ import { useVideoPlayer, type VideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   type AnimatedStyle,
@@ -13,7 +13,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
@@ -21,9 +20,9 @@ import { IconButton } from '@/ui/kit/controls/button';
 import { Image } from '@/ui/kit/primitives/image';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { STRIP_HEIGHT, STRIP_SHARE, stripBottom, stripThumbTop } from '../photo-strip';
 import { boxFor, clamp, mediaSize } from './geometry';
 import { verticalGestures } from './gestures';
+import type { ViewerLayout } from './layout';
 import { viewerStyles } from './styles';
 import type { Box, ViewerPhoto } from './types';
 import { useZoom } from './zoom';
@@ -32,6 +31,7 @@ export function VideoFrame({
   photo,
   width,
   height,
+  layout,
   dragY,
   lift,
   info,
@@ -46,6 +46,7 @@ export function VideoFrame({
   photo: ViewerPhoto;
   width: number;
   height: number;
+  layout: ViewerLayout;
   dragY: SharedValue<number>;
   lift: SharedValue<number>;
   info: boolean;
@@ -98,6 +99,8 @@ export function VideoFrame({
             <Video
               uri={uri}
               box={videoBox}
+              width={width}
+              layout={layout}
               active={live}
               onTap={onTap}
               visible={visible}
@@ -138,6 +141,8 @@ export function VideoFrame({
 function Video({
   uri,
   box,
+  width,
+  layout,
   active,
   onTap,
   visible,
@@ -145,14 +150,14 @@ function Video({
 }: {
   uri: string;
   box: Box;
+  width: number;
+  layout: ViewerLayout;
   active: boolean;
   onTap: () => void;
   visible: boolean;
   zoomStyle: AnimatedStyle<ViewStyle>;
 }) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const { width: screen, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -183,11 +188,8 @@ function Video({
     player.muted = !player.muted;
   };
 
-  const landscape = screen > screenHeight;
-  const barWidth = screen * (landscape ? STRIP_SHARE : 0.9);
-  const barBottom = landscape
-    ? stripThumbTop(insets.bottom, true) + space.s2
-    : stripBottom(insets.bottom, false) + STRIP_HEIGHT + space.s1;
+  const barWidth = layout.controlsWidth;
+  const barBottom = layout.controlsBottom;
 
   return (
     <View style={styles.fill}>
@@ -209,7 +211,7 @@ function Video({
         <View
           style={[
             styles.controls,
-            { bottom: barBottom, width: barWidth, left: (screen - barWidth) / 2 },
+            { bottom: barBottom, width: barWidth, left: (width - barWidth) / 2 },
           ]}
         >
           <IconButton
