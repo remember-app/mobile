@@ -7,7 +7,7 @@ import {
   getItem,
   listGallery,
   type MediaPatch,
-  updateItemDescription,
+  updateItemComment,
 } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import { clearMediaGroup } from '@/integrations/files/media-cache';
@@ -61,7 +61,10 @@ function revive(item: Item): Item {
     createdAt: new Date(item.createdAt),
     media: {
       ...item.media,
-      capturedAt: item.media.capturedAt === null ? null : new Date(item.media.capturedAt),
+      meta: {
+        ...item.media.meta,
+        at: item.media.meta.at === null ? null : new Date(item.media.meta.at),
+      },
     },
   };
 }
@@ -259,9 +262,9 @@ export function refreshItem(projectId: ProjectId, itemId: ProjectItemId): Promis
 export async function updateItem(
   projectId: ProjectId,
   itemId: ProjectItemId,
-  description: string | null,
+  comment: string | null,
 ): Promise<Item> {
-  const item = await updateItemDescription(requireToken(), projectId, itemId, description);
+  const item = await updateItemComment(requireToken(), projectId, itemId, comment);
   mergeItem(projectId, item);
   return item;
 }

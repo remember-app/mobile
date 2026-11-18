@@ -162,29 +162,21 @@ export function toProjectCard(wire: ProjectCardWire): ProjectCard {
 }
 
 export function toMedia(wire: MediaWire): Media {
-  const base = {
+  return {
     id: wire.id,
     kind: wire.kind,
     fingerprint: wire.fingerprint,
     perceptualHash: wire.perceptualHash,
     format: wire.format,
     bytes: count(wire.bytes),
-    capturedAt: dateOrNull(wire.capturedAt),
-    place: wire.place
-      ? {
-          latitude: wire.place.latitude,
-          longitude: wire.place.longitude,
-        }
-      : null,
-    uploadedBy: wire.uploadedBy,
+    meta: {
+      dimensions: wire.meta.dimensions,
+      duration: wire.meta.duration,
+      at: dateOrNull(wire.meta.at),
+      place: wire.meta.place,
+      camera: wire.meta.camera,
+    },
   };
-  if (wire.kind === 'photo') {
-    return { ...base, dimensions: wire.dimensions, duration: null, camera: wire.camera };
-  }
-  if (wire.kind === 'video') {
-    return { ...base, dimensions: wire.dimensions, duration: wire.duration, camera: wire.camera };
-  }
-  return { ...base, dimensions: null, duration: wire.duration, camera: null };
 }
 
 export function toItem(wire: ItemWire): Item {
@@ -195,7 +187,7 @@ export function toItem(wire: ItemWire): Item {
     media: toMedia(wire.media),
     links: wire.links,
     uploader: wire.uploader ? toPublicUser(wire.uploader) : null,
-    description: wire.item.description,
+    comment: wire.item.comment,
     labelIds: wire.item.labelIds,
     analysis: wire.item.analysis,
     createdAt: date(wire.item.createdAt),
@@ -207,12 +199,10 @@ export function toUpload(wire: UploadWire): Upload {
     id: wire.id,
     projectId: wire.projectId,
     kind: wire.kind,
-    fileName: wire.fileName,
-    declaredBytes: count(wire.declaredBytes),
+    file: wire.file,
     status: wire.status,
     derive: wire.derive,
-    errorCode: wire.errorCode,
-    error: wire.error,
+    failure: wire.failure,
     mediaId: wire.mediaId,
     uploader: wire.uploader ? toPublicUser(wire.uploader) : null,
     createdAt: date(wire.createdAt),
@@ -233,12 +223,8 @@ export function toLabel(wire: LabelWire): Label {
     projectId: wire.projectId,
     ownerId: wire.ownerId,
     name: wire.name,
-    color: wire.colorHex as `#${string}`,
-    description: wire.description,
-    shared: wire.shared,
-    locked: wire.locked,
-    itemCount: wire.itemCount,
-    createdAt: date(wire.createdAt),
+    color: wire.color,
+    itemsIds: wire.itemsIds,
   };
 }
 
@@ -247,7 +233,6 @@ export function toContact(wire: ContactWire): Contact {
     userId: wire.contactId,
     username: wire.username,
     name: wire.name,
-    avatarUrl: wire.avatarUrl,
   };
 }
 
@@ -268,10 +253,12 @@ export function toSong(wire: SongWire): Song {
     id: wire.id,
     name: wire.name,
     author: wire.author,
-    mediaId: wire.mediaId,
+    originalId: wire.originalId,
+    compressedId: wire.compressedId,
     coverId: wire.coverId,
+    previewCoverId: wire.previewCoverId,
     coverUrl: wire.coverUrl,
-    description: wire.description,
+    previewCoverUrl: wire.previewCoverUrl,
     duration: wire.duration,
     uploadedBy: wire.uploadedBy,
   };
@@ -329,11 +316,11 @@ export function toMovie(wire: MovieWire): Movie {
     createdBy: wire.createdBy,
     createdAt: date(wire.createdAt),
     montageId: wire.montageId,
-    videoId: wire.videoId,
+    originalId: wire.originalId,
+    compressedId: wire.compressedId,
+    previewId: wire.previewId,
     video: wire.video,
     montage: wire.montage ? toMontage(wire.montage) : null,
-    thumbnailId: wire.derived.thumbnailId,
-    previewId: wire.derived.previewId,
     videoUrl: wire.video_url,
     posterUrl: wire.poster_url,
     previewUrl: wire.preview_url,

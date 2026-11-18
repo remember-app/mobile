@@ -99,12 +99,12 @@ export function MusicPage({
           ) : (
             songs.map((song) => (
               <TrackRow
-                key={song.mediaId}
+                key={song.originalId}
                 song={song}
-                on={!director && musicIds.includes(song.mediaId)}
+                on={!director && musicIds.includes(song.originalId)}
                 playing={playingId === song.id}
                 onPlay={() => void togglePlay(song)}
-                onSelect={() => onSelect(song.mediaId)}
+                onSelect={() => onSelect(song.originalId)}
               />
             ))
           )}

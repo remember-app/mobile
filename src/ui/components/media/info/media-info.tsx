@@ -14,11 +14,11 @@ import { PlaceMap } from './place-map';
 
 export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Item }) {
   const labels = useLabels(projectId);
-  const [caption, setCaption] = useState(item.description ?? '');
+  const [caption, setCaption] = useState(item.comment ?? '');
 
   useEffect(() => {
-    setCaption(item.description ?? '');
-  }, [item.id, item.description]);
+    setCaption(item.comment ?? '');
+  }, [item.id, item.comment]);
 
   useEffect(() => {
     void loadLabels(projectId);
@@ -27,18 +27,18 @@ export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Ite
   const media = item.media;
   const meta: PhotoMeta = {
     capturedAt: itemDate(item),
-    cameraModel: media.camera?.model ?? '',
+    cameraModel: media.meta.camera?.model ?? '',
     format: media.format,
     lens: '',
     standard: false,
-    width: media.dimensions?.width ?? 0,
-    height: media.dimensions?.height ?? 0,
+    width: media.meta.dimensions?.width ?? 0,
+    height: media.meta.dimensions?.height ?? 0,
     bytes: media.bytes,
-    iso: media.camera?.exposure.iso ?? null,
-    focalLengthMm: media.camera?.focalLengthMm ?? null,
-    ev: media.camera?.exposure.ev ?? null,
-    aperture: media.camera?.exposure.aperture ?? null,
-    shutter: media.camera?.exposure.shutter ?? null,
+    iso: media.meta.camera?.exposure.iso ?? null,
+    focalLengthMm: media.meta.camera?.focalLengthMm ?? null,
+    ev: media.meta.camera?.exposure.ev ?? null,
+    aperture: media.meta.camera?.exposure.aperture ?? null,
+    shutter: media.meta.camera?.exposure.shutter ?? null,
     place: null,
   };
 

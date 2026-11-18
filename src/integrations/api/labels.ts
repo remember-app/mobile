@@ -8,15 +8,12 @@ import type { LabelWire, OffsetPageWire } from './wire';
 
 export type NewLabel = {
   name: string;
-  colorHex: `#${string}`;
-  shared: boolean;
-  description?: string | null;
+  color: `#${string}`;
 };
 
 export type LabelPatch = {
   name?: string;
-  colorHex?: `#${string}`;
-  description?: string | null;
+  color?: `#${string}`;
 };
 
 export function listLabels(

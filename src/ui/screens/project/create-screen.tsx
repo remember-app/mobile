@@ -73,7 +73,7 @@ export default function CreateScreen() {
         contacts={contacts.map((contact) => ({
           id: contact.userId,
           name: contact.name ?? contact.username ?? '',
-          avatarUrl: contact.avatarUrl,
+          avatarUrl: null,
         }))}
         selected={invited}
         onToggle={toggle}

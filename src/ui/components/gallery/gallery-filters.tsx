@@ -42,7 +42,7 @@ export const NO_FILTERS: GalleryFiltersValue = {
 export function filterItems(items: readonly Item[], filters: GalleryFiltersValue): Item[] {
   return items.filter((item) => {
     if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
-    const size = item.media.dimensions;
+    const size = item.media.meta.dimensions;
     if (size && filters.orientations.length > 0) {
       const vertical = size.height >= size.width;
       if (!filters.orientations.includes(vertical ? 'vertical' : 'horizontal')) return false;
@@ -55,7 +55,7 @@ export function filterItems(items: readonly Item[], filters: GalleryFiltersValue
     }
     if (
       filters.uploaderIds.length > 0 &&
-      (!item.media.uploadedBy || !filters.uploaderIds.includes(item.media.uploadedBy))
+      (!item.uploader || !filters.uploaderIds.includes(item.uploader.id))
     ) {
       return false;
     }

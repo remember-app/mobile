@@ -68,7 +68,6 @@ export function LabelsManager({ projectId }: { projectId: ProjectId }) {
     await createLabel(projectId, {
       name: name.trim(),
       color: hslToHex(hue) as `#${string}`,
-      shared: false,
     });
     setName('');
     setOpen(false);
@@ -140,13 +139,11 @@ function LabelRow({
       </Text>
       <View style={styles.slot}>
         <Text role="bodySm" tone="muted">
-          {label.itemCount}
+          {label.itemsIds.length}
         </Text>
       </View>
     </Pressable>
   );
-
-  if (label.locked) return row;
 
   return (
     <SwipeRow tone="danger" icon={Trash2} onAction={onDelete}>

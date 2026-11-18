@@ -131,7 +131,7 @@ export default function MontageScreen() {
   const chosen = montageItems(montage, gallery.items);
   const songs = songPool(projectSongs.items, library.items);
   const music = (settings?.musicIds ?? []).flatMap((mediaId) => {
-    const song = songs.find((entry) => entry.mediaId === mediaId);
+    const song = songs.find((entry) => entry.originalId === mediaId);
     return song ? [song] : [];
   });
   const frames = chosen.map(itemSource).filter((source): source is string => Boolean(source));
@@ -181,7 +181,7 @@ export default function MontageScreen() {
             prompt={settings?.prompt ?? null}
             items={chosen}
             music={music.map((song) => ({
-              id: song.mediaId,
+              id: song.originalId,
               name: song.name,
               author: song.author,
             }))}

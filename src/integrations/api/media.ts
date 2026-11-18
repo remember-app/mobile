@@ -57,15 +57,15 @@ export function deleteMedia(
   return request(`/v1/projects/${projectId}/media/${mediaId}`, { method: 'DELETE', token });
 }
 
-export function updateItemDescription(
+export function updateItemComment(
   token: string,
   projectId: ProjectId,
   itemId: ProjectItemId,
-  description: string | null,
+  comment: string | null,
 ): Promise<Item> {
   return request<ItemWire>(`/v1/projects/${projectId}/items/${itemId}`, {
     method: 'PATCH',
-    body: { description },
+    body: { comment },
     token,
   }).then(toItem);
 }

@@ -7,16 +7,25 @@ export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed';
 
 export type DeriveStatus = 'queued' | 'running' | 'done' | 'failed';
 
+export type UploadFile = {
+  name: string;
+  format: string;
+  bytes: number;
+};
+
+export type UploadFailure = {
+  code: string | null;
+  message: string | null;
+};
+
 export type Upload = {
   id: UploadId;
   projectId: ProjectId | null;
   kind: MediaKind;
-  fileName: string;
-  declaredBytes: number;
+  file: UploadFile;
   status: UploadStatus;
   derive: DeriveStatus | null;
-  errorCode: string | null;
-  error: string | null;
+  failure: UploadFailure | null;
   mediaId: MediaId | null;
   uploader: PublicUser | null;
   createdAt: Date;

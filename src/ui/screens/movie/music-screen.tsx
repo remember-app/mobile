@@ -63,7 +63,7 @@ export default function MovieMusicScreen() {
                   </Text>
                 ) : null}
               </View>
-              {used.has(song.mediaId) ? <Check size={18} color={color.accent} /> : null}
+              {used.has(song.originalId) ? <Check size={18} color={color.accent} /> : null}
             </View>
           ))}
         </Card>

@@ -10,9 +10,6 @@ export type NewUpload = {
   kind: MediaKind;
   sizeBytes: number;
   fileName: string;
-  capturedAt?: string | null;
-  durationSeconds?: number | null;
-  fingerprint?: string | null;
 };
 
 export function listUploads(

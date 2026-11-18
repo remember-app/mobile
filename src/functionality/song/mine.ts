@@ -18,8 +18,9 @@ export type OwnSongsState = {
 export type OwnSongInput = {
   name: string;
   author?: string | null;
-  mediaId: MediaId;
+  originalId: MediaId;
   coverId?: MediaId | null;
+  previewCoverId?: MediaId | null;
 };
 
 const EMPTY: OwnSongsState = { status: 'loading', items: [], error: null };

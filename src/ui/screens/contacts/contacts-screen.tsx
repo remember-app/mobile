@@ -116,7 +116,7 @@ export default function ContactsScreen() {
                 <Person
                   name={contact.name ?? ''}
                   username={contact.username ?? ''}
-                  uri={contact.avatarUrl}
+                  uri={null}
                   style={styles.contact}
                 />
               </SwipeRow>

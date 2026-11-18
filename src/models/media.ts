@@ -1,4 +1,4 @@
-import type { LabelId, MediaId, ProjectId, ProjectItemId, UserId } from '@/types/id';
+import type { LabelId, MediaId, ProjectId, ProjectItemId } from '@/types/id';
 
 import type { PublicUser } from './user';
 
@@ -20,6 +20,14 @@ export type MediaCamera = {
   };
 };
 
+export type MediaMeta = {
+  dimensions: { width: number; height: number } | null;
+  duration: number | null;
+  at: Date | null;
+  place: MediaPlace | null;
+  camera: MediaCamera | null;
+};
+
 export type Media = {
   id: MediaId;
   kind: MediaKind;
@@ -27,12 +35,7 @@ export type Media = {
   perceptualHash: string;
   format: string;
   bytes: number;
-  dimensions: { width: number; height: number } | null;
-  duration: number | null;
-  capturedAt: Date | null;
-  place: MediaPlace | null;
-  camera: MediaCamera | null;
-  uploadedBy: UserId | null;
+  meta: MediaMeta;
 };
 
 export type AnalysisLevel = 'low' | 'medium' | 'high';
@@ -63,6 +66,8 @@ export type DownloadLink = {
   url: string;
 };
 
+export type PreviewSize = 'small' | 'middle' | 'large';
+
 export type Item = {
   id: ProjectItemId;
   projectId: ProjectId;
@@ -70,21 +75,34 @@ export type Item = {
   media: Media;
   links: {
     original: string | null;
-    thumbnail: string | null;
-    preview: string | null;
+    compressed: string | null;
+    previews: Partial<Record<PreviewSize, string>>;
   };
   uploader: PublicUser | null;
-  description: string | null;
+  comment: string | null;
   labelIds: LabelId[];
   analysis: Analysis | null;
   createdAt: Date;
 };
 
 export function itemSource(item: Item): string | null {
-  return item.links.thumbnail ?? item.links.preview ?? item.links.original;
+  return (
+    item.links.previews.middle ??
+    item.links.previews.small ??
+    item.links.compressed ??
+    item.links.original
+  );
+}
+
+export function itemPreview(item: Item, size: PreviewSize): string | null {
+  return item.links.previews[size] ?? itemSource(item);
+}
+
+export function itemPlayback(item: Item): string | null {
+  return item.links.compressed ?? item.links.original;
 }
 
 /** Дата кадра: съёмки, если известна, иначе загрузки — одно правило на всё приложение. */
 export function itemDate(item: Item): Date {
-  return item.media.capturedAt ?? item.createdAt;
+  return item.media.meta.at ?? item.createdAt;
 }

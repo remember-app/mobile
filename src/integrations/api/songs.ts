@@ -40,9 +40,9 @@ export function createSong(
   input: {
     name: string;
     author: string;
-    mediaId: MediaId;
+    originalId: MediaId;
     coverId?: MediaId | null;
-    description?: string | null;
+    previewCoverId?: MediaId | null;
   },
 ): Promise<Song> {
   return request<SongWire>(`/v1/projects/${projectId}/songs`, {
@@ -57,9 +57,9 @@ export function createOwnSong(
   input: {
     name: string;
     author?: string | null;
-    mediaId: MediaId;
+    originalId: MediaId;
     coverId?: MediaId | null;
-    description?: string | null;
+    previewCoverId?: MediaId | null;
   },
 ): Promise<Song> {
   return request<SongWire>('/v1/songs', {
@@ -76,7 +76,7 @@ export function updateSong(
     name?: string;
     author?: string | null;
     coverId?: MediaId | null;
-    description?: string | null;
+    previewCoverId?: MediaId | null;
   },
 ): Promise<Song> {
   return request<SongWire>(`/v1/songs/${songId}`, {

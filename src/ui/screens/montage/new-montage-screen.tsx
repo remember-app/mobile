@@ -155,7 +155,12 @@ export default function NewMontageScreen() {
   const prompt = draft.prompt.trim() || null;
 
   const thumbnails = useMemo(
-    () => gallery.items.flatMap((item) => (item.links.thumbnail ? [item.links.thumbnail] : [])),
+    () =>
+      gallery.items.flatMap((item) => {
+        const source =
+          item.links.previews.middle ?? item.links.previews.small ?? item.links.original;
+        return source ? [source] : [];
+      }),
     [gallery.items],
   );
 
@@ -205,7 +210,7 @@ export default function NewMontageScreen() {
     () => songPool(projectSongs.items, library.items),
     [library.items, projectSongs.items],
   );
-  const chosenSongs = songs.filter((song) => draft.musicIds.includes(song.mediaId));
+  const chosenSongs = songs.filter((song) => draft.musicIds.includes(song.originalId));
 
   const selectedAt = useMemo(() => orderOf(draft.includeItemIds), [draft.includeItemIds]);
 
@@ -281,7 +286,7 @@ export default function NewMontageScreen() {
 
   const chooseDirector = (on: boolean) => {
     setDirector(on);
-    change({ musicIds: on ? songs.map((song) => song.mediaId) : [] });
+    change({ musicIds: on ? songs.map((song) => song.originalId) : [] });
   };
 
   const chooseSong = (mediaId: string) => {

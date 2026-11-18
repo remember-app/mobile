@@ -1,4 +1,4 @@
-import type { LabelId, ProjectId, UserId } from '@/types/id';
+import type { LabelId, ProjectId, ProjectItemId, UserId } from '@/types/id';
 
 export type Label = {
   id: LabelId;
@@ -6,9 +6,5 @@ export type Label = {
   ownerId: UserId;
   name: string;
   color: `#${string}`;
-  description: string | null;
-  shared: boolean;
-  locked: boolean;
-  itemCount: number;
-  createdAt: Date;
+  itemsIds: ProjectItemId[];
 };

@@ -1,5 +1,11 @@
 import type { DeviceAsset } from '@/integrations/media-library';
-import { type Item, itemDate, itemSource } from '@/models';
+import {
+  type Item,
+  itemDate,
+  itemPlayback,
+  itemPreview,
+  itemSource,
+} from '@/models';
 import { duration } from '@/ui/format';
 
 import type { Photo } from './photo-grid';
@@ -10,16 +16,15 @@ export function tileOf(item: Item): Photo {
   return {
     id: item.id,
     projectId: item.projectId,
-    source: itemSource(item),
-    preview: video
-      ? (item.links.thumbnail ?? item.links.preview)
-      : (item.links.preview ?? item.links.thumbnail ?? item.links.original),
+    source: itemPreview(item, 'middle') ?? itemSource(item),
+    preview: itemPreview(item, 'middle'),
     original: item.kind === 'photo' ? item.links.original : null,
     video,
-    playbackUrl: video ? (item.links.preview ?? item.links.original) : null,
-    note: video && item.media.duration !== null ? duration(item.media.duration) : undefined,
-    width: item.media.dimensions?.width,
-    height: item.media.dimensions?.height,
+    playbackUrl: video ? itemPlayback(item) : null,
+    note:
+      video && item.media.meta.duration !== null ? duration(item.media.meta.duration) : undefined,
+    width: item.media.meta.dimensions?.width,
+    height: item.media.meta.dimensions?.height,
     capturedAt: itemDate(item),
   };
 }
@@ -29,12 +34,12 @@ export function viewerOf(item: Item): ViewerPhoto {
   return {
     id: item.id,
     projectId: item.projectId,
-    source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
-    thumb: item.links.thumbnail,
+    source: item.links.compressed ?? item.links.original ?? itemPreview(item, 'large'),
+    thumb: itemPreview(item, 'small'),
     video,
-    playbackUrl: video ? (item.links.preview ?? item.links.original) : null,
-    width: item.media.dimensions?.width,
-    height: item.media.dimensions?.height,
+    playbackUrl: video ? itemPlayback(item) : null,
+    width: item.media.meta.dimensions?.width,
+    height: item.media.meta.dimensions?.height,
     capturedAt: itemDate(item),
   };
 }

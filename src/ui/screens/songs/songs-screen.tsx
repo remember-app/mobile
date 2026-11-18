@@ -124,7 +124,7 @@ export default function SongsScreen() {
     setSheetOpen(true);
     setDraft({
       id: song.id,
-      mediaId: song.mediaId,
+      mediaId: song.originalId,
       audioUri: null,
       name: song.name,
       author: song.author ?? '',
@@ -169,7 +169,7 @@ export default function SongsScreen() {
       if (draft.id !== null) {
         await updateOwnSong(draft.id, { name, author, coverId: draft.coverId });
       } else if (draft.mediaId !== null) {
-        await createOwnSong({ name, author, mediaId: draft.mediaId, coverId: draft.coverId });
+        await createOwnSong({ name, author, originalId: draft.mediaId, coverId: draft.coverId });
       } else {
         return;
       }

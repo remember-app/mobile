@@ -26,38 +26,23 @@ export type DimensionsResponse = {
   height: number;
 };
 
-type MediaCommonResponse = {
+export type MediaMetaResponse = {
+  dimensions: DimensionsResponse | null;
+  duration: number | null;
+  at: string | null;
+  place: PlaceResponse | null;
+  camera: CameraResponse | null;
+};
+
+export type MediaResponse = {
   id: string;
+  kind: MediaKind;
   fingerprint: string;
   perceptualHash: string;
   format: string;
   bytes: string;
-  capturedAt: string | null;
-  place: PlaceResponse | null;
-  uploadedBy: string | null;
+  meta: MediaMetaResponse;
 };
-
-export type MediaResponse =
-  | (MediaCommonResponse & {
-      kind: 'photo';
-      dimensions: DimensionsResponse | null;
-      duration: null;
-      camera: CameraResponse | null;
-    })
-  | (MediaCommonResponse & {
-      kind: 'video';
-      dimensions: DimensionsResponse | null;
-      duration: number | null;
-      camera: CameraResponse | null;
-    })
-  | (MediaCommonResponse & {
-      kind: 'audio';
-      dimensions: null;
-      duration: number | null;
-      camera: null;
-    });
-
-export type AnalysisLevel = 'low' | 'medium' | 'high';
 
 export type AnalysisTags = Record<string, string>;
 
@@ -69,7 +54,7 @@ export type AnalysisSegment = {
 };
 
 export type AnalysisResponse = {
-  level: AnalysisLevel;
+  level: 'low' | 'medium' | 'high';
   summary: string;
   description: string;
   scoreImportance?: number;
@@ -84,8 +69,8 @@ export type ItemResponse = {
   item: {
     id: string;
     projectId: string;
-    mediaId: string;
-    description: string | null;
+    uploadedBy: string;
+    comment: string | null;
     labelIds: string[];
     analysis: AnalysisResponse | null;
     createdAt: string;
@@ -94,8 +79,8 @@ export type ItemResponse = {
   uploader: PublicUserResponse | null;
   links: {
     original: string | null;
-    thumbnail: string | null;
-    preview: string | null;
+    compressed: string | null;
+    previews: Partial<Record<'small' | 'middle' | 'large', string>>;
   };
 };
 
@@ -124,6 +109,6 @@ export type MediaPatchRequest = {
   longitude?: number | null;
 };
 
-export type ItemDescriptionRequest = {
-  description: string | null;
+export type ItemCommentRequest = {
+  comment: string | null;
 };

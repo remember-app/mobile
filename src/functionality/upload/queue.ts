@@ -4,7 +4,7 @@ import { refreshItem } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
 import { readCache, writeCache } from '@/integrations/files/cache';
-import { type FilePart, fileDigest, readFilePart } from '@/integrations/files/parts';
+import { type FilePart, readFilePart } from '@/integrations/files/parts';
 import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
@@ -77,11 +77,10 @@ async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promis
         const item = await refreshItem(next.projectId, next.itemId).catch(() => undefined);
         const ready =
           item !== undefined &&
-          (item.kind === 'video'
-            ? item.links.thumbnail !== null
-            : item.links.thumbnail !== null ||
-              item.links.preview !== null ||
-              item.links.original !== null);
+          (item.links.previews.middle !== undefined ||
+            item.links.previews.small !== undefined ||
+            item.links.compressed !== null ||
+            item.links.original !== null);
         if (ready && item) {
           readyPreviews.add(next.itemId);
           void ensureThumbnail(item).catch(() => undefined);
@@ -265,18 +264,10 @@ function rangeOf(sizeBytes: number, partBytes: number, number: number): FilePart
 
 async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan> {
   if (item.uploadId === null) {
-    let fingerprint = item.fingerprint;
-    if (fingerprint === null) {
-      fingerprint = await fileDigest(item.uri);
-      if (fingerprint) update(item.localId, { fingerprint });
-    }
     const plan = await startUpload(token, item.projectId, {
       kind: item.kind,
       sizeBytes: item.sizeBytes,
       fileName: item.fileName.slice(0, 255),
-      capturedAt: item.capturedAt,
-      durationSeconds: item.durationSeconds,
-      fingerprint,
     });
     update(item.localId, {
       uploadId: plan.id,

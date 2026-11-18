@@ -59,10 +59,7 @@ function persist(projectId: ProjectId): void {
 
 function order(labels: Label[]): Label[] {
   return [...labels].sort(
-    (left, right) =>
-      Number(right.shared) - Number(left.shared) ||
-      left.name.localeCompare(right.name) ||
-      left.id.localeCompare(right.id),
+    (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
   );
 }
 
@@ -71,7 +68,7 @@ export function hydrateLabels(projectId: ProjectId): void {
   if (!stored || !Array.isArray(stored.labels)) return;
   emit(projectId, {
     status: 'ready',
-    labels: stored.labels.map((label) => ({ ...label, createdAt: new Date(label.createdAt) })),
+    labels: stored.labels,
     nextOffset: stored.nextOffset,
     error: null,
   });
@@ -150,13 +147,11 @@ export async function loadMoreLabels(projectId: ProjectId): Promise<void> {
 
 export async function createLabel(
   projectId: ProjectId,
-  input: { name: string; color: `#${string}`; description?: string | null; shared: boolean },
+  input: { name: string; color: `#${string}` },
 ): Promise<Label> {
   const label = await apiCreateLabel(requireToken(), projectId, {
     name: input.name,
-    colorHex: input.color,
-    description: input.description ?? null,
-    shared: input.shared,
+    color: input.color,
   });
   const current = labelsState(projectId);
   emit(projectId, {
@@ -172,13 +167,9 @@ export async function createLabel(
 export async function updateLabel(
   projectId: ProjectId,
   labelId: LabelId,
-  patch: { name?: string; color?: `#${string}`; description?: string | null },
+  patch: { name?: string; color?: `#${string}` },
 ): Promise<Label> {
-  const label = await apiUpdateLabel(requireToken(), projectId, labelId, {
-    ...(patch.name === undefined ? {} : { name: patch.name }),
-    ...(patch.color === undefined ? {} : { colorHex: patch.color }),
-    ...(patch.description === undefined ? {} : { description: patch.description }),
-  });
+  const label = await apiUpdateLabel(requireToken(), projectId, labelId, patch);
   const current = labelsState(projectId);
   emit(projectId, {
     ...current,
@@ -206,7 +197,7 @@ export async function attachItems(
   const { attached } = await attachLabelItems(requireToken(), projectId, labelId, itemIds);
   if (attached > 0) {
     setItemLabels(projectId, itemIds, labelId, true);
-    await bumpCount(projectId, labelId, attached);
+    await bumpItems(projectId, labelId, itemIds, true);
   }
   return attached;
 }
@@ -219,20 +210,29 @@ export async function detachItems(
   const { detached } = await detachLabelItems(requireToken(), projectId, labelId, itemIds);
   if (detached > 0) {
     setItemLabels(projectId, itemIds, labelId, false);
-    await bumpCount(projectId, labelId, -detached);
+    await bumpItems(projectId, labelId, itemIds, false);
   }
   return detached;
 }
 
-async function bumpCount(projectId: ProjectId, labelId: LabelId, delta: number): Promise<void> {
+async function bumpItems(
+  projectId: ProjectId,
+  labelId: LabelId,
+  itemIds: ProjectItemId[],
+  attached: boolean,
+): Promise<void> {
   const current = labelsState(projectId);
-  const label = current.labels.find((item) => item.id === labelId);
-  if (!label) return;
   emit(projectId, {
     ...current,
-    labels: current.labels.map((item) =>
-      item.id === labelId ? { ...item, itemCount: Math.max(0, item.itemCount + delta) } : item,
-    ),
+    labels: current.labels.map((label) => {
+      if (label.id !== labelId) return label;
+      const next = new Set(label.itemsIds);
+      for (const itemId of itemIds) {
+        if (attached) next.add(itemId);
+        else next.delete(itemId);
+      }
+      return { ...label, itemsIds: [...next] };
+    }),
   });
   persist(projectId);
 }

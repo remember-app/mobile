@@ -17,11 +17,11 @@ export type Movie = {
   createdBy: UserId;
   createdAt: Date;
   montageId: MontageId;
-  videoId: MediaId;
+  originalId: MediaId;
+  compressedId: MediaId | null;
+  previewId: MediaId | null;
   video: MovieVideo | null;
   montage: Montage | null;
-  thumbnailId: MediaId | null;
-  previewId: MediaId | null;
   videoUrl: string | null;
   posterUrl: string | null;
   previewUrl: string | null;
