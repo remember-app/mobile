@@ -66,6 +66,7 @@ import {
   useProjects,
   useUploads,
 } from '@/ui/hooks';
+import { ScreenLogoButton } from '@/ui/kit/chrome/backdrop';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
 import { ActionBar } from '@/ui/kit/controls/action-bar';
@@ -250,6 +251,11 @@ export default function ProjectScreen() {
 
   const title = project?.title ?? t('project.title');
   const loading = !project || (gallery.status === 'loading' && gallery.items.length === 0);
+  const empty =
+    !loading &&
+    gallery.status !== 'error' &&
+    photos.length === 0 &&
+    Math.max(project?.itemCount ?? 0, gallery.items.length) === 0;
   const banner = montages.items.length > 0;
   const top = insets.top + space.s2 + 44 + (banner ? card + space.s2 * 2 + 2 : 0) + space.s2;
   const edge = insets.top + space.s2 + 44 + space.s2;
@@ -356,7 +362,10 @@ export default function ProjectScreen() {
           gallery.status === 'error' ? (
             <LoadError onRetry={() => void loadGallery(projectId, true)} />
           ) : (
-            <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]} />
+            <>
+              <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]} />
+              {empty ? <ScreenLogoButton label={t('project.add')} onPress={pick} /> : null}
+            </>
           )
         ) : (
           <PhotoGrid
@@ -421,18 +430,20 @@ export default function ProjectScreen() {
             ]}
           />
         ) : null}
-        <ActionBar>
-          <Animated.View
-            style={actionStyle}
-            pointerEvents={scrolling || selecting ? 'none' : 'auto'}
-          >
-            <Button
-              label={canCreate ? t('montage.create') : t('project.add')}
-              variant="primary"
-              onPress={canCreate ? create : pick}
-            />
-          </Animated.View>
-        </ActionBar>
+        {empty ? null : (
+          <ActionBar>
+            <Animated.View
+              style={actionStyle}
+              pointerEvents={scrolling || selecting ? 'none' : 'auto'}
+            >
+              <Button
+                label={canCreate ? t('montage.create') : t('project.add')}
+                variant="primary"
+                onPress={canCreate ? create : pick}
+              />
+            </Animated.View>
+          </ActionBar>
+        )}
         {filtering ? (
           <Pressable
             accessibilityRole="button"

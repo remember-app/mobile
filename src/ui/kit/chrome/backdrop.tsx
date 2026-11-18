@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ProjectId } from '@/types/id';
 import { useGallery, useMontages, useMovies, useProjects } from '@/ui/hooks';
@@ -71,6 +71,28 @@ export function ScreenSkin({
       ) : null}
       {children}
     </View>
+  );
+}
+
+/** Прозрачная область поверх логотипа фона: сам логотип рисует ScreenSkin. */
+export function ScreenLogoButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { name } = useTheme();
+  const { width, height } = useWindowDimensions();
+  if (name !== 'dark') return null;
+  const logo = LOGO_BOX * Math.max(width / CANVAS_W, height / CANVAS_H);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{
+        position: 'absolute',
+        left: (width - logo) / 2,
+        top: (height - logo) / 2,
+        width: logo,
+        height: logo,
+      }}
+    />
   );
 }
 

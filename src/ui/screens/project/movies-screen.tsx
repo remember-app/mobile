@@ -5,11 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadMontages, loadMovies, loadProjects } from '@/functionality';
-import { canCreateMontage, movieOfMontage } from '@/models';
+import { movieOfMontage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import { MontageCard, openMontage } from '@/ui/components/montage/montage-card';
 import { useMontages, useMovies, useProjectCard } from '@/ui/hooks';
+import { ScreenLogoButton } from '@/ui/kit/chrome/backdrop';
 import { Board, pageBody } from '@/ui/kit/chrome/bars';
 import { ActionBar } from '@/ui/kit/controls/action-bar';
 import { Button, IconButton } from '@/ui/kit/controls/button';
@@ -27,7 +28,7 @@ export default function MoviesScreen() {
   const montages = useMontages(projectId);
   const movies = useMovies(projectId);
   const admin = project?.myRole === 'admin';
-  const canCreate = canCreateMontage(project);
+  const hasFilm = movies.items.length > 0 || montages.items.length > 0;
 
   useEffect(() => {
     void loadProjects();
@@ -64,7 +65,7 @@ export default function MoviesScreen() {
             }
           />
         }
-        body={[pageBody, canCreate ? { paddingBottom: insets.bottom + 100 } : null]}
+        body={[pageBody, hasFilm ? { paddingBottom: insets.bottom + 100 } : null]}
       >
         {loading ? (
           <View style={{ paddingVertical: space.s7, alignItems: 'center' }}>
@@ -89,7 +90,10 @@ export default function MoviesScreen() {
           })
         )}
       </Board>
-      {canCreate ? (
+      {!loading && montages.status !== 'error' && !hasFilm ? (
+        <ScreenLogoButton label={t('montage.create')} onPress={create} />
+      ) : null}
+      {hasFilm ? (
         <ActionBar>
           <Button label={t('montage.create')} variant="primary" onPress={create} />
         </ActionBar>
