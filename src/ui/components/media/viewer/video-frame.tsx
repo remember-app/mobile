@@ -404,7 +404,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s2,
     paddingVertical: space.s1,
     borderRadius: radius.pill,
-    backgroundColor: '#6E6E78',
+    backgroundColor: 'rgba(20,22,45,0.62)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
   },
   track: {
     flex: 1,
