@@ -11,7 +11,6 @@ export type ViewerLayout = {
   hudSide: number;
   stripHitBottom: number;
   stripHitHeight: number;
-  stripInset: number;
   stripWidth: number;
   controlsBottom: number;
   controlsWidth: number;
@@ -30,7 +29,6 @@ export function viewerLayout(width: number, height: number, insets: Insets): Vie
     hudSide: portrait ? space.s4 : Math.max(insets.left, insets.right, space.s4) + space.s4 * 1.5,
     stripHitBottom,
     stripHitHeight: STRIP_BREADTH,
-    stripInset: (width - stripWidth) / 2,
     stripWidth,
     controlsBottom: portrait ? STRIP_HEIGHT + space.s1 : thumbTop + space.s2,
     controlsWidth: width * (portrait ? 0.9 : STRIP_SHARE),

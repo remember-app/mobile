@@ -27,7 +27,6 @@ const SELECTED = 40;
 const UNSELECTED = 30;
 const GAP = 12;
 const RADIUS = 4;
-const FADE = 36;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -35,24 +34,19 @@ type ItemProps = {
   index: number;
   photo: ViewerPhoto;
   lead: number;
-  inset: number;
-  viewWidth: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(index - focus));
     const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - distance);
-    const centre = inset + lead + index * STRIP_PITCH + UNSELECTED / 2 - scrollX.value;
-    const edge = Math.min(centre - inset, inset + viewWidth - centre);
     return {
       left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
       width,
-      opacity: clamp(edge / FADE, 0, 1),
     };
   });
 
@@ -100,7 +94,6 @@ export function PhotoStrip({
   onSettle,
 }: Props) {
   const viewWidth = layout.stripWidth;
-  const inset = layout.stripInset;
   const count = photos.length;
   const lead = (viewWidth - UNSELECTED) / 2;
   const [center, setCenter] = useState(index);
@@ -161,8 +154,6 @@ export function PhotoStrip({
           index={at}
           photo={photo}
           lead={lead}
-          inset={inset}
-          viewWidth={viewWidth}
           scrollX={scrollX}
           onSelect={select}
         />,
@@ -178,7 +169,12 @@ export function PhotoStrip({
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       snapToInterval={STRIP_PITCH}
-      style={{ width: viewWidth, height: layout.stripHitHeight, alignSelf: 'center' }}
+      style={{
+        width: viewWidth,
+        height: layout.stripHitHeight,
+        alignSelf: 'center',
+        overflow: 'hidden',
+      }}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
         dragging.current = true;
