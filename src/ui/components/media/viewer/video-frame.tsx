@@ -21,7 +21,7 @@ import { IconButton } from '@/ui/kit/controls/button';
 import { Image } from '@/ui/kit/primitives/image';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { STRIP_HEIGHT, STRIP_SHARE } from '../photo-strip';
+import { STRIP_HEIGHT, STRIP_SHARE, stripBottom } from '../photo-strip';
 import { boxFor, clamp, mediaSize } from './geometry';
 import { verticalGestures } from './gestures';
 import { viewerStyles } from './styles';
@@ -184,7 +184,7 @@ function Video({
   };
 
   const barWidth = screen * (screen < screenHeight ? 0.9 : STRIP_SHARE);
-  const barBottom = insets.bottom + space.s2 + STRIP_HEIGHT + space.s2;
+  const barBottom = stripBottom(insets.bottom, screen < screenHeight) + STRIP_HEIGHT + space.s1;
 
   return (
     <View style={styles.fill}>

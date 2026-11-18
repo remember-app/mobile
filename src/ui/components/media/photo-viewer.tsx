@@ -33,7 +33,7 @@ import { Text } from '@/ui/kit/primitives/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
-import { PhotoStrip, STRIP_PITCH } from './photo-strip';
+import { PhotoStrip, STRIP_PITCH, stripBottom } from './photo-strip';
 import { boxFor, mediaSize, targetFor } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 import { VideoFrame } from './viewer/video-frame';
@@ -487,7 +487,7 @@ export function PhotoViewer({
           style={[
             styles.strip,
             {
-              bottom: insets.bottom + space.s2,
+              bottom: stripBottom(insets.bottom, landscape),
             },
             stripStyle,
           ]}

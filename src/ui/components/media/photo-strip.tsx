@@ -19,7 +19,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/primitives/image';
-import { useTheme } from '@/ui/theme';
+import { space, useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
@@ -35,6 +35,10 @@ const FADE = 36;
 export const STRIP_PITCH = UNSELECTED + GAP;
 export const STRIP_SHARE = SHARE;
 const WINDOW = 14;
+
+export function stripBottom(bottomInset: number, landscape: boolean): number {
+  return bottomInset + (landscape ? space.s1 : space.s2);
+}
 
 type ItemProps = {
   index: number;
