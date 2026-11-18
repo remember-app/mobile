@@ -507,7 +507,7 @@ export function PhotoViewer({
           />
         </Animated.View>
       ) : null}
-      {chrome && !zoomed && phase === 'open' ? (
+      {chrome && !zoomed && !info && phase === 'open' ? (
         <BlurBar
           edge="top"
           shade={false}
