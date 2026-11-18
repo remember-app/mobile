@@ -59,7 +59,7 @@ type Props = {
 
 type Phase = 'entering' | 'open' | 'leaving';
 
-const HUD_GAP = 40;
+const HUD_GAP = 60;
 
 export function PhotoViewer({
   photos,

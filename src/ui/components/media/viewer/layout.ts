@@ -19,17 +19,17 @@ export type ViewerLayout = {
 /** Положение элементов просмотрщика считается здесь и нигде больше. */
 export function viewerLayout(width: number, height: number, insets: Insets): ViewerLayout {
   const portrait = width <= height;
-  const hudTop = portrait ? 0 : space.s4 / 2;
-  const stripBottom = portrait ? insets.bottom + space.s2 : hudTop;
+  const stripBottom = portrait ? insets.bottom + space.s2 : -20;
   const stripWidth = width * STRIP_SHARE;
+  const thumbTop = stripBottom + (STRIP_HEIGHT + STRIP_BREADTH) / 2;
 
   return {
-    hudTop,
+    hudTop: portrait ? 0 : space.s4 / 2,
     hudSide: portrait ? space.s4 : Math.max(insets.left, insets.right, space.s4) + space.s4 * 1.5,
     stripBottom,
     stripInset: (width - stripWidth) / 2,
     stripWidth,
-    controlsBottom: stripBottom + STRIP_HEIGHT + space.s1,
+    controlsBottom: portrait ? STRIP_HEIGHT + space.s1 : thumbTop + space.s2,
     controlsWidth: width * (portrait ? 0.9 : STRIP_SHARE),
   };
 }
