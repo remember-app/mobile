@@ -13,6 +13,8 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -39,16 +41,18 @@ type ItemProps = {
   photo: ViewerPhoto;
   lead: number;
   scrollX: SharedValue<number>;
+  expand: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, scrollX, expand, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const delta = index - scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(delta));
-    const width = STRIP_UNSELECTED + (STRIP_SELECTED - STRIP_UNSELECTED) * (1 - distance);
-    const push = Math.sign(delta) * distance * STRIP_CENTER_PUSH;
+    const growth = expand.value;
+    const width = STRIP_UNSELECTED + (STRIP_SELECTED - STRIP_UNSELECTED) * (1 - distance) * growth;
+    const push = Math.sign(delta) * distance * STRIP_CENTER_PUSH * growth;
     return {
       left: lead + index * STRIP_PITCH + push - (width - STRIP_UNSELECTED) / 2,
       width,
@@ -104,6 +108,15 @@ export function PhotoStrip({
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
   const dragging = useRef(false);
+  const expand = useSharedValue(1);
+
+  useAnimatedReaction(
+    () => active.value === 1,
+    (moving) => {
+      expand.value = withTiming(moving ? 0 : 1, { duration: 160 });
+    },
+    [active, expand],
+  );
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -161,6 +174,7 @@ export function PhotoStrip({
           photo={photo}
           lead={lead}
           scrollX={scrollX}
+          expand={expand}
           onSelect={select}
         />,
       );
