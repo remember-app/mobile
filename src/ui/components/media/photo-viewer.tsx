@@ -103,10 +103,7 @@ export function PhotoViewer({
   const current = currentPhoto?.source ?? null;
   const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
   const landscape = width > height;
-  const hudPad = landscape
-    ? Math.max((width - startBox.width) / 2, Math.max(insets.left, insets.right) + space.s4) +
-      space.s4
-    : space.s4;
+  const hudPad = landscape ? Math.max(insets.left, insets.right, space.s4) : space.s4;
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
@@ -507,10 +504,7 @@ export function PhotoViewer({
         </Animated.View>
       ) : null}
       {chrome && !zoomed && phase === 'open' ? (
-        <BlurBar
-          edge="top"
-          style={[styles.hud, { paddingTop: insets.top + space.s3, paddingHorizontal: hudPad }]}
-        >
+        <BlurBar edge="top" style={[styles.hud, { paddingHorizontal: hudPad }]}>
           <BackButton label={t('action.back')} size={44} onPress={leave} />
           <View style={[styles.hudWords, { maxWidth: width - hudPad * 2 - 88 - HUD_GAP * 2 }]}>
             {currentPhoto?.capturedAt ? (
@@ -594,8 +588,7 @@ const styles = StyleSheet.create({
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: HUD_GAP,
+    justifyContent: 'space-between',
     paddingHorizontal: space.s4,
     minHeight: 44,
   },
