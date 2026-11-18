@@ -524,7 +524,12 @@ export function PhotoViewer({
             { top: layout.hudTop + 56, paddingHorizontal: layout.hudSide },
           ]}
         >
-          <View style={styles.hudBox}>
+          <View
+            style={[
+              styles.hudBox,
+              { backgroundColor: theme.color.surface, borderColor: theme.color.line },
+            ]}
+          >
             <Text role="row">2×</Text>
           </View>
         </BlurBar>
