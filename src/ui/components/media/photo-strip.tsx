@@ -21,7 +21,7 @@ import { Image } from '@/ui/kit/primitives/image';
 import { useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
-import { STRIP_BREADTH, STRIP_HEIGHT, type ViewerLayout } from './viewer/layout';
+import { STRIP_BREADTH, type ViewerLayout } from './viewer/layout';
 import type { ViewerPhoto } from './viewer/types';
 
 const SELECTED = 40;
@@ -184,7 +184,7 @@ export function PhotoStrip({
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       snapToInterval={STRIP_PITCH}
-      style={[styles.scroll, { width: viewWidth, alignSelf: 'center' }]}
+      style={{ width: viewWidth, height: layout.stripHitHeight, alignSelf: 'center' }}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
         dragging.current = true;
@@ -193,7 +193,7 @@ export function PhotoStrip({
       }}
       onMomentumScrollEnd={stop}
     >
-      <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: STRIP_HEIGHT }}>
+      <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: layout.stripHitHeight }}>
         {items}
       </View>
     </Animated.ScrollView>
@@ -201,12 +201,9 @@ export function PhotoStrip({
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    height: STRIP_HEIGHT,
-  },
   item: {
     position: 'absolute',
-    top: (STRIP_HEIGHT - STRIP_BREADTH) / 2,
+    top: 0,
     height: STRIP_BREADTH,
     borderRadius: RADIUS,
     overflow: 'hidden',

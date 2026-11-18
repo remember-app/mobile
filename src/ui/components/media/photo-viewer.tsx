@@ -488,7 +488,7 @@ export function PhotoViewer({
           style={[
             styles.strip,
             {
-              bottom: layout.stripBottom,
+              bottom: layout.stripHitBottom,
             },
             stripStyle,
           ]}
