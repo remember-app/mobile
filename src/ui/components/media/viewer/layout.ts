@@ -1,9 +1,9 @@
 import { space } from '@/ui/theme';
 
 export const STRIP_HEIGHT = 130;
-export const STRIP_BREADTH = 27;
-export const STRIP_SELECTED = 28;
-export const STRIP_UNSELECTED = 20;
+export const STRIP_BREADTH = 32;
+export const STRIP_SELECTED = 34;
+export const STRIP_UNSELECTED = 24;
 export const STRIP_GAP = 4;
 export const STRIP_CENTER_PUSH = 12;
 export const STRIP_PITCH = STRIP_UNSELECTED + STRIP_GAP;
