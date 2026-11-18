@@ -504,7 +504,10 @@ export function PhotoViewer({
         </Animated.View>
       ) : null}
       {chrome && !zoomed && phase === 'open' ? (
-        <BlurBar edge="top" style={[styles.hud, { paddingHorizontal: hudPad }]}>
+        <BlurBar
+          edge="top"
+          style={[styles.hud, { top: landscape ? space.s4 : 0, paddingHorizontal: hudPad }]}
+        >
           <BackButton label={t('action.back')} size={44} onPress={leave} />
           <View style={[styles.hudWords, { maxWidth: width - hudPad * 2 - 88 - HUD_GAP * 2 }]}>
             {currentPhoto?.capturedAt ? (
