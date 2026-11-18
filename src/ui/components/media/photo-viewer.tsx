@@ -506,6 +506,7 @@ export function PhotoViewer({
       {chrome && !zoomed && phase === 'open' ? (
         <BlurBar
           edge="top"
+          shade={false}
           style={[styles.hud, { top: landscape ? space.s4 : 0, paddingHorizontal: hudPad }]}
         >
           <BackButton label={t('action.back')} size={44} onPress={leave} />
