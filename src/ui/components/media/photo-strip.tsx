@@ -20,15 +20,19 @@ import { Image } from '@/ui/kit/primitives/image';
 import { useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
-import { STRIP_BREADTH, type ViewerLayout } from './viewer/layout';
+import {
+  STRIP_BREADTH,
+  STRIP_CENTER_PUSH,
+  STRIP_PITCH,
+  STRIP_SELECTED,
+  STRIP_UNSELECTED,
+  type ViewerLayout,
+} from './viewer/layout';
 import type { ViewerPhoto } from './viewer/types';
 
-const SELECTED = 40;
-const UNSELECTED = 30;
-const GAP = 12;
 const RADIUS = 4;
-export const STRIP_PITCH = UNSELECTED + GAP;
-const WINDOW = 14;
+
+export { STRIP_PITCH } from './viewer/layout';
 
 type ItemProps = {
   index: number;
@@ -41,11 +45,12 @@ type ItemProps = {
 function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
-    const focus = scrollX.value / STRIP_PITCH;
-    const distance = Math.min(1, Math.abs(index - focus));
-    const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - distance);
+    const delta = index - scrollX.value / STRIP_PITCH;
+    const distance = Math.min(1, Math.abs(delta));
+    const width = STRIP_UNSELECTED + (STRIP_SELECTED - STRIP_UNSELECTED) * (1 - distance);
+    const push = Math.sign(delta) * distance * STRIP_CENTER_PUSH;
     return {
-      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
+      left: lead + index * STRIP_PITCH + push - (width - STRIP_UNSELECTED) / 2,
       width,
     };
   });
@@ -95,7 +100,7 @@ export function PhotoStrip({
 }: Props) {
   const viewWidth = layout.stripWidth;
   const count = photos.length;
-  const lead = (viewWidth - UNSELECTED) / 2;
+  const lead = (viewWidth - STRIP_UNSELECTED) / 2;
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
   const dragging = useRef(false);
@@ -142,8 +147,9 @@ export function PhotoStrip({
     onSettle(next);
   };
 
-  const from = Math.max(0, center - WINDOW);
-  const to = Math.min(count - 1, center + WINDOW);
+  const window = Math.ceil(viewWidth / STRIP_PITCH / 2) + 2;
+  const from = Math.max(0, center - window);
+  const to = Math.min(count - 1, center + window);
   const items = [];
   for (let at = from; at <= to; at += 1) {
     const photo = photos[at];
@@ -183,7 +189,12 @@ export function PhotoStrip({
       }}
       onMomentumScrollEnd={stop}
     >
-      <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: layout.stripHitHeight }}>
+      <View
+        style={{
+          width: viewWidth + (count - 1) * STRIP_PITCH + STRIP_CENTER_PUSH,
+          height: layout.stripHitHeight,
+        }}
+      >
         {items}
       </View>
     </Animated.ScrollView>
@@ -204,7 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reveal: {
-    width: SELECTED,
+    width: STRIP_SELECTED,
     height: STRIP_BREADTH,
   },
   fill: {

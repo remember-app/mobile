@@ -1,7 +1,12 @@
 import { space } from '@/ui/theme';
 
 export const STRIP_HEIGHT = 130;
-export const STRIP_BREADTH = 40;
+export const STRIP_BREADTH = 27;
+export const STRIP_SELECTED = 28;
+export const STRIP_UNSELECTED = 20;
+export const STRIP_GAP = 4;
+export const STRIP_CENTER_PUSH = 12;
+export const STRIP_PITCH = STRIP_UNSELECTED + STRIP_GAP;
 const STRIP_SHARE = 0.8;
 
 type Insets = { top: number; bottom: number; left: number; right: number };
@@ -20,7 +25,9 @@ export type ViewerLayout = {
 export function viewerLayout(width: number, height: number, insets: Insets): ViewerLayout {
   const portrait = width <= height;
   const stripBottom = portrait ? insets.bottom + space.s2 : -20;
-  const stripWidth = width * STRIP_SHARE;
+  const available = width * STRIP_SHARE;
+  const steps = Math.max(1, Math.floor((available - STRIP_CENTER_PUSH * 2) / (STRIP_PITCH * 2)));
+  const stripWidth = (steps * STRIP_PITCH + STRIP_CENTER_PUSH) * 2;
   const stripHitBottom = stripBottom + (STRIP_HEIGHT - STRIP_BREADTH) / 2;
   const thumbTop = stripHitBottom + STRIP_BREADTH;
 
