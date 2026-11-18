@@ -125,7 +125,7 @@ export function CodeField({
           value={value}
           onChangeText={(next) =>
             onChangeText(
-              (alnum ? next.replace(/[^0-9A-Za-z]/g, '') : next.replace(/\D/g, '')).slice(
+              (alnum ? next.toUpperCase().replace(/[^0-9A-Z]/g, '') : next.replace(/\D/g, '')).slice(
                 0,
                 length,
               ),
