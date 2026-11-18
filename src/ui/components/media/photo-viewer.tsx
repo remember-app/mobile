@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   scrollTo,
@@ -109,6 +110,19 @@ export function PhotoViewer({
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
   const [chrome, setChrome] = useState(true);
   const [muted, setMuted] = useState(false);
+  const [speedMode, setSpeedMode] = useState(false);
+  const makeSpeedPress = useCallback(
+    () =>
+      Gesture.LongPress()
+        .minDuration(400)
+        .maxDistance(8)
+        .onStart(() => scheduleOnRN(setSpeedMode, true))
+        .onEnd(() => scheduleOnRN(setSpeedMode, false))
+        .onFinalize(() => scheduleOnRN(setSpeedMode, false)),
+    [],
+  );
+  const leftPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
+  const rightPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
   const progress = useSharedValue(grows ? 0 : 1);
   const flight = useSharedValue(0);
   const fromY = useSharedValue(0);
@@ -118,6 +132,10 @@ export function PhotoViewer({
   useEffect(() => {
     setStatusBarHidden(!chrome || info || zoomed, 'fade');
   }, [chrome, info, zoomed]);
+
+  useEffect(() => {
+    setSpeedMode(false);
+  }, [currentPhoto?.id]);
 
   const endScroll = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearEndScroll = useCallback(() => {
@@ -399,6 +417,7 @@ export function PhotoViewer({
                     visible={chrome && !zoomed && at === index}
                     muted={muted}
                     onMutedChange={setMuted}
+                    speed={speedMode ? 2 : 1}
                   />
                 ) : (
                   <Zoomable
@@ -507,7 +526,50 @@ export function PhotoViewer({
           />
         </Animated.View>
       ) : null}
-      {chrome && !zoomed && !info && phase === 'open' ? (
+      {speedMode && currentPhoto?.video ? (
+        <BlurBar
+          edge="top"
+          shade={false}
+          style={[
+            styles.hud,
+            styles.speedBar,
+            { top: layout.hudTop, paddingHorizontal: layout.hudSide },
+          ]}
+        >
+          <View style={styles.hudBox}>
+            <Text role="row">2×</Text>
+          </View>
+        </BlurBar>
+      ) : null}
+      {currentPhoto?.video && !zoomed && !info ? (
+        <>
+          <GestureDetector gesture={leftPress}>
+            <View
+              style={[
+                styles.edge,
+                {
+                  left: 0,
+                  top: layout.hudTop + 56,
+                  bottom: layout.stripHitBottom + layout.stripHitHeight,
+                },
+              ]}
+            />
+          </GestureDetector>
+          <GestureDetector gesture={rightPress}>
+            <View
+              style={[
+                styles.edge,
+                {
+                  right: 0,
+                  top: layout.hudTop + 56,
+                  bottom: layout.stripHitBottom + layout.stripHitHeight,
+                },
+              ]}
+            />
+          </GestureDetector>
+        </>
+      ) : null}
+      {chrome && !zoomed && !info && !speedMode && phase === 'open' ? (
         <BlurBar
           edge="top"
           shade={false}
@@ -601,6 +663,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: space.s4,
     minHeight: 44,
+  },
+  speedBar: {
+    justifyContent: 'center',
+  },
+  edge: {
+    position: 'absolute',
+    width: 32,
+    zIndex: 4,
   },
   hudWords: {
     alignItems: 'center',
