@@ -55,6 +55,7 @@ export function wallpaperFor(
 ): Wallpaper {
   if (routeName === 'onboarding' || routeName === 'welcome') return solid;
   if (routeName === 'sign-up') return plain();
+  if (routeName === 'project/[id]/settings') return plain();
 
   if (routeName === 'home') {
     return cards.length > 0 ? plain() : centered(STATE.empty);
