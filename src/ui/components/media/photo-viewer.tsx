@@ -111,15 +111,42 @@ export function PhotoViewer({
   const [chrome, setChrome] = useState(true);
   const [muted, setMuted] = useState(false);
   const [speedMode, setSpeedMode] = useState(false);
+  const speedStart = useSharedValue({ x: 0, y: 0 });
+  const speedMoved = useSharedValue(false);
+  const speedActivated = useSharedValue(false);
   const makeSpeedPress = useCallback(
     () =>
       Gesture.LongPress()
         .minDuration(400)
-        .maxDistance(8)
-        .onStart(() => scheduleOnRN(setSpeedMode, true))
-        .onEnd(() => scheduleOnRN(setSpeedMode, false))
-        .onFinalize(() => scheduleOnRN(setSpeedMode, false)),
-    [],
+        .maxDistance(10000)
+        .numberOfPointers(1)
+        .onTouchesDown((event) => {
+          const touch = event.allTouches[0];
+          speedStart.value = { x: touch?.x ?? 0, y: touch?.y ?? 0 };
+          speedMoved.value = false;
+        })
+        .onTouchesMove((event) => {
+          if (speedActivated.value) return;
+          const touch = event.allTouches[0];
+          if (!touch) return;
+          const dx = touch.x - speedStart.value.x;
+          const dy = touch.y - speedStart.value.y;
+          if (dx * dx + dy * dy > 64) speedMoved.value = true;
+        })
+        .onStart(() => {
+          if (speedMoved.value) return;
+          speedActivated.value = true;
+          scheduleOnRN(setSpeedMode, true);
+        })
+        .onEnd(() => {
+          speedActivated.value = false;
+          scheduleOnRN(setSpeedMode, false);
+        })
+        .onFinalize(() => {
+          speedActivated.value = false;
+          scheduleOnRN(setSpeedMode, false);
+        }),
+    [speedActivated, speedMoved, speedStart],
   );
   const leftPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
   const rightPress = useMemo(() => makeSpeedPress(), [makeSpeedPress]);
@@ -533,7 +560,7 @@ export function PhotoViewer({
           style={[
             styles.hud,
             styles.speedBar,
-            { top: layout.hudTop, paddingHorizontal: layout.hudSide },
+            { top: layout.hudTop + space.s5, paddingHorizontal: layout.hudSide },
           ]}
         >
           <View style={styles.hudBox}>
