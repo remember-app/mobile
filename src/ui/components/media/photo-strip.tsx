@@ -40,6 +40,10 @@ export function stripBottom(bottomInset: number, landscape: boolean): number {
   return landscape ? 0 : bottomInset + space.s2;
 }
 
+export function stripThumbTop(bottomInset: number, landscape: boolean): number {
+  return stripBottom(bottomInset, landscape) + (STRIP_HEIGHT + BREADTH) / 2;
+}
+
 type ItemProps = {
   index: number;
   photo: ViewerPhoto;
