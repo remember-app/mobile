@@ -211,8 +211,7 @@ export default function ProjectScreen() {
         };
       });
     return [...files, ...sending]
-      .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
-      .reverse()
+      .sort((left, right) => (filters.sort === 'new' ? left.at - right.at : right.at - left.at))
       .map((entry) => entry.photo);
   }, [filters, visibleItems, labelMode, labels.labels, pending, selecting, selected]);
 

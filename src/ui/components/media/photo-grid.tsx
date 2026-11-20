@@ -87,7 +87,6 @@ export function PhotoGrid({
         const photo = photos[index];
         if (photo) row.push({ key: photo.id, index, photo });
       }
-      row.reverse();
       for (const item of row) {
         at.set(item.index, items.length);
         items.push(item);
@@ -138,7 +137,6 @@ export function PhotoGrid({
         extraData={blankIndex}
         numColumns={PHOTO_COLUMNS}
         keyExtractor={(item) => item.key}
-        inverted
         maintainVisibleContentPosition={{ disabled: true }}
         onEndReached={() => {
           if (userMoved.current) onLoadOlder?.();
@@ -152,7 +150,7 @@ export function PhotoGrid({
         onMomentumScrollBegin={() => {
           userMoved.current = true;
         }}
-        contentContainerStyle={{ paddingTop: bottomPad, paddingBottom: topPad }}
+        contentContainerStyle={{ paddingTop: topPad, paddingBottom: bottomPad }}
         style={styles.list}
         renderItem={({ item }) => {
           const { photo, index } = item;
