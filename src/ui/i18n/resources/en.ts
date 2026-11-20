@@ -228,6 +228,8 @@ export const en = {
     namePlaceholder: 'Label title',
     show: 'Show labels',
     hide: 'Hide labels',
+    showAll: 'Show all',
+    showLabel: 'Show label',
     showNames: 'Show label names',
     hideNames: 'Hide label names',
     noneOnPhoto: 'No labels',

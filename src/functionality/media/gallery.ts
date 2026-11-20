@@ -38,7 +38,7 @@ const inFlight = new Map<ProjectId, Promise<void>>();
 const itemLoads = new Map<string, Promise<Item>>();
 const listeners = new Set<() => void>();
 
-const cacheName = (projectId: ProjectId) => `gallery-v3-${projectId}`;
+const cacheName = (projectId: ProjectId) => `gallery-v4-${projectId}`;
 
 export const galleryState = (projectId: ProjectId | undefined): GalleryState =>
   projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;
@@ -148,7 +148,7 @@ function mergeItem(projectId: ProjectId, item: Item): void {
   const items = exists
     ? current.items.map((candidate) => (candidate.id === item.id ? item : candidate))
     : [...current.items, item].sort(
-        (left, right) => left.createdAt.getTime() - right.createdAt.getTime(),
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
       );
   emit(projectId, { ...current, items });
   persist(projectId);

@@ -17,17 +17,18 @@ import {
 import { fileDigest } from '@/integrations/files/parts';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
-import { PHOTO_COLUMNS, type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
+import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
+import { GalleryScreen } from '@/ui/components/media/gallery-screen';
+import { PHOTO_COLUMNS, type Photo } from '@/ui/components/media/photo-grid';
 import { deviceTileOf, deviceViewerOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
+import { useGallerySelection } from '@/ui/gallery-selection';
 import { useProjectCard, useUploads } from '@/ui/hooks';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
 import { ActionBar } from '@/ui/kit/controls/action-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/controls/button';
 import { Text } from '@/ui/kit/primitives/text';
-import { orderOf } from '@/ui/selection';
 import { radius, space, useTheme } from '@/ui/theme';
 
 const PAGE = 60;
@@ -67,7 +68,8 @@ export default function PickScreen() {
   collectionRef.current = collection;
   const loadingMore = useRef(false);
   const loadingRange = useRef(false);
-  const [selected, setSelected] = useState<DeviceAsset[]>([]);
+  const selection = useGallerySelection<string>();
+  const { filters, setFilters } = useGalleryFilters();
   const [duplicates, setDuplicates] = useState<Set<string>>(new Set());
   const [checking, setChecking] = useState(false);
   const [datesOnly, setDatesOnly] = useState(false);
@@ -75,8 +77,8 @@ export default function PickScreen() {
   const [preparing, setPreparing] = useState<{ done: number; total: number } | null>(null);
   const [slow, setSlow] = useState(false);
   const [storageWarning, setStorageWarning] = useState(0);
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  const selectedRef = useRef<ReadonlySet<string>>(selection.ids);
+  selectedRef.current = selection.ids;
   const sizes = useRef<Record<string, number>>({});
   const resolved = useRef(new Map<string, Awaited<ReturnType<typeof resolveDeviceAsset>>>());
   const resolving = useRef(
@@ -173,10 +175,10 @@ export default function PickScreen() {
         .then((local) => {
           const next = { ...sizes.current, [asset.id]: local.sizeBytes };
           sizes.current = next;
-          const total = selectedRef.current.reduce((sum, entry) => sum + (next[entry.id] ?? 0), 0);
+          const total = [...selectedRef.current].reduce((sum, id) => sum + (next[id] ?? 0), 0);
           const limit = availableRef.current;
           if (limit !== null && total > limit) {
-            setSelected((was) => was.filter((entry) => entry.id !== asset.id));
+            selection.deselect(asset.id);
             setStorageWarning((value) => value + 1);
           }
         })
@@ -202,23 +204,20 @@ export default function PickScreen() {
 
   const toggle = (asset: DeviceAsset) => {
     setDuplicates(new Set());
-    if (selectedRef.current.some((entry) => entry.id === asset.id)) {
-      setSelected((was) => was.filter((entry) => entry.id !== asset.id));
+    if (selectedRef.current.has(asset.id)) {
+      selection.deselect(asset.id);
       return;
     }
     const known = sizes.current[asset.id];
     const limit = availableRef.current;
     if (known !== undefined && limit !== null) {
-      const total = selectedRef.current.reduce(
-        (sum, entry) => sum + (sizes.current[entry.id] ?? 0),
-        0,
-      );
+      const total = [...selectedRef.current].reduce((sum, id) => sum + (sizes.current[id] ?? 0), 0);
       if (total + known > limit) {
         setStorageWarning((value) => value + 1);
         return;
       }
     }
-    setSelected((was) => [...was, asset]);
+    selection.select(asset.id);
     if (known === undefined) measure(asset);
   };
 
@@ -254,7 +253,7 @@ export default function PickScreen() {
 
   const selectAll = () => {
     const picked = ordered.filter(inDates);
-    setSelected(picked);
+    selection.replace(picked.map((asset) => asset.id));
     setDuplicates(new Set());
     if (picked.length > 0) {
       requestAnimationFrame(() => measureTile.current?.(0, () => undefined));
@@ -262,9 +261,10 @@ export default function PickScreen() {
   };
 
   const confirm = async () => {
-    if (!selected.length || !id || checking) return;
+    if (selection.ids.size === 0 || !id || checking) return;
     const projectId = id as ProjectId;
-    const chosen = selected;
+    const byId = new Map(assets.map((asset) => [asset.id, asset]));
+    const chosen = selection.list.flatMap((assetId) => byId.get(assetId) ?? []);
     setChecking(true);
     setPreparing({ done: 0, total: chosen.length });
     try {
@@ -330,7 +330,7 @@ export default function PickScreen() {
           style: 'destructive',
           onPress: () => {
             const rest = prepared.filter((entry) => !dup.has(entry.assetId));
-            setSelected((was) => was.filter((asset) => !dup.has(asset.id)));
+            selection.replace(selection.list.filter((assetId) => !dup.has(assetId)));
             setDuplicates(new Set());
             if (rest.length === 0) return;
             upload(rest);
@@ -354,29 +354,45 @@ export default function PickScreen() {
     }
   };
 
-  const order = useMemo(() => orderOf(selected.map((asset) => asset.id)), [selected]);
+  const visible = useMemo(() => {
+    const filtered = ordered.filter((asset) => {
+      if (filters.kinds.length > 0 && !filters.kinds.includes(asset.kind)) return false;
+      if (filters.orientations.length > 0 && asset.width && asset.height) {
+        const vertical = asset.height >= asset.width;
+        if (!filters.orientations.includes(vertical ? 'vertical' : 'horizontal')) return false;
+      }
+      return true;
+    });
+    return filters.sort === 'old' ? [...filtered].reverse() : filtered;
+  }, [filters, ordered]);
 
   const photos = useMemo<Photo[]>(
     () =>
-      ordered.map((asset) => ({
+      visible.map((asset) => ({
         ...deviceTileOf(asset),
-        select: order.get(asset.id) ?? null,
+        selected: selection.has(asset.id),
         accent: duplicates.has(asset.id),
       })),
-    [duplicates, order, ordered],
+    [duplicates, selection, visible],
   );
 
-  const viewerPhotos = useMemo(() => ordered.map(deviceViewerOf), [ordered]);
+  const viewerPhotos = useMemo(() => visible.map(deviceViewerOf), [visible]);
 
   const actionLabel = checking
     ? slow && preparing
       ? t('picker.preparing', { done: preparing.done, total: preparing.total })
       : t('picker.checking')
-    : selected.length
-      ? t('picker.addCount', { count: selected.length })
+    : selection.ids.size
+      ? t('picker.addCount', { count: selection.ids.size })
       : datesOnly
         ? t('picker.selectAll')
         : t('picker.dates');
+
+  const primaryPress = () => {
+    if (selection.ids.size > 0) void confirm();
+    else if (datesOnly) selectAll();
+    else void loadRange();
+  };
 
   return (
     <>
@@ -415,19 +431,49 @@ export default function PickScreen() {
               ))}
             </View>
           ) : ordered.length === 0 ? null : (
-            <PhotoGrid
+            <GalleryScreen
               key={collection}
               photos={photos}
+              viewerPhotos={viewerPhotos}
+              viewer={preview}
               onOpen={(index, rect) => setPreview({ index, rect })}
+              onClose={() => setPreview(null)}
+              onIndex={onIndex}
+              measureRef={measureTile}
               onSelect={(index) => {
-                const asset = ordered[index];
+                const asset = visible[index];
                 if (asset) toggle(asset);
               }}
-              blankIndex={preview?.index ?? null}
-              measureRef={measureTile}
-              mark="check"
+              selection={selection}
+              hud={{
+                primary: {
+                  kind: 'single',
+                  label: actionLabel,
+                  disabled: checking,
+                  onPress: primaryPress,
+                },
+                selectionDefault: true,
+                canSelect: true,
+                onSelectingChange: (next) => {
+                  if (!next) selection.clear();
+                },
+                filters,
+                onFiltersChange: setFilters,
+                filterFields: { labels: false, uploaders: false },
+                bottom: insets.bottom + space.s3,
+                renderSelectionActions: () => (
+                  <ActionBar>
+                    <Button
+                      label={actionLabel}
+                      variant="primary"
+                      disabled={checking}
+                      onPress={primaryPress}
+                    />
+                  </ActionBar>
+                ),
+              }}
               padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
-              onLoadOlder={() => void loadMore()}
+              onLoadMore={() => void loadMore()}
             />
           )}
         </View>
@@ -447,9 +493,9 @@ export default function PickScreen() {
             label={t('picker.clear')}
             tone="surface"
             size={44}
-            on={selected.length > 0 || datesOnly}
+            on={selection.ids.size > 0 || datesOnly}
             onPress={() => {
-              if (selected.length > 0) setSelected([]);
+              if (selection.ids.size > 0) selection.clear();
               else if (datesOnly) setDatesOnly(false);
               setDuplicates(new Set());
             }}
@@ -479,7 +525,7 @@ export default function PickScreen() {
                     setCollection(item);
                     setMenu(false);
                     setPreview(null);
-                    setSelected([]);
+                    selection.clear();
                     setDatesOnly(false);
                     setDuplicates(new Set());
                   }}
@@ -494,35 +540,6 @@ export default function PickScreen() {
             </View>
           </>
         ) : null}
-        <ActionBar>
-          <Button
-            label={actionLabel}
-            variant="primary"
-            disabled={checking}
-            onPress={() => {
-              if (selected.length > 0) void confirm();
-              else if (datesOnly) selectAll();
-              else void loadRange();
-            }}
-          />
-        </ActionBar>
-        {preview === null ? null : (
-          <PhotoViewer
-            photos={viewerPhotos}
-            initialIndex={preview.index}
-            origin={preview.rect}
-            onClose={() => setPreview(null)}
-            onLoadMore={() => void loadMore()}
-            onIndex={onIndex}
-            selected={
-              preview ? selected.some((asset) => asset.id === ordered[preview.index]?.id) : false
-            }
-            onSelect={() => {
-              const asset = preview ? ordered[preview.index] : undefined;
-              if (asset) toggle(asset);
-            }}
-          />
-        )}
       </View>
     </>
   );

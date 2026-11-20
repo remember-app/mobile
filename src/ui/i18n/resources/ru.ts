@@ -231,6 +231,8 @@ export const ru: typeof en = {
     namePlaceholder: 'Название лейбла',
     show: 'Показать лейблы',
     hide: 'Скрыть лейблы',
+    showAll: 'Показать все',
+    showLabel: 'Показать лейбл',
     showNames: 'Показать названия лейблов',
     hideNames: 'Скрыть названия лейблов',
     noneOnPhoto: 'Нет лейблов',

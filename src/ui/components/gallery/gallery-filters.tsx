@@ -80,15 +80,27 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
 }
 
+export type GalleryFilterFields = {
+  labels: boolean;
+  uploaders: boolean;
+};
+
+export const ALL_FILTER_FIELDS: GalleryFilterFields = {
+  labels: true,
+  uploaders: true,
+};
+
 export function GalleryFiltersPanel({
   value,
   labels,
   members,
+  fields = ALL_FILTER_FIELDS,
   onChange,
 }: {
   value: GalleryFiltersValue;
   labels: Label[];
   members: Member[];
+  fields?: GalleryFilterFields;
   onChange: (next: GalleryFiltersValue) => void;
 }) {
   const { t } = useTranslation();
@@ -148,44 +160,48 @@ export function GalleryFiltersPanel({
           onToggle={(orientation) => set('orientations', toggle(value.orientations, orientation))}
         />
       </View>
-      <ScrollRow label={t('filter.uploader')}>
-        {members.map((member) => {
-          const on = value.uploaderIds.includes(member.userId);
-          return (
-            <Pressable
-              key={member.userId}
-              accessibilityRole="togglebutton"
-              accessibilityLabel={member.name?.trim() || member.username || ''}
-              accessibilityState={{ checked: on }}
-              onPress={() => set('uploaderIds', toggle(value.uploaderIds, member.userId))}
-              style={[styles.avatarCell, { borderColor: on ? color.paper : 'transparent' }]}
-            >
-              <Avatar
-                name={member.name?.trim() || member.username || ''}
-                size={36}
-                uri={member.avatarUrl}
-              />
-            </Pressable>
-          );
-        })}
-      </ScrollRow>
-      <ScrollRow label={t('filter.labels')}>
-        {labels.map((label) => {
-          const on = value.labelIds.includes(label.id);
-          return (
-            <Pressable
-              key={label.id}
-              accessibilityRole="togglebutton"
-              accessibilityLabel={label.name}
-              accessibilityState={{ checked: on }}
-              onPress={() => set('labelIds', toggle(value.labelIds, label.id))}
-              style={[styles.labelCell, { borderColor: on ? color.paper : 'transparent' }]}
-            >
-              <LabelMark tint={label.color} size={30} />
-            </Pressable>
-          );
-        })}
-      </ScrollRow>
+      {fields.uploaders ? (
+        <ScrollRow label={t('filter.uploader')}>
+          {members.map((member) => {
+            const on = value.uploaderIds.includes(member.userId);
+            return (
+              <Pressable
+                key={member.userId}
+                accessibilityRole="togglebutton"
+                accessibilityLabel={member.name?.trim() || member.username || ''}
+                accessibilityState={{ checked: on }}
+                onPress={() => set('uploaderIds', toggle(value.uploaderIds, member.userId))}
+                style={[styles.avatarCell, { borderColor: on ? color.paper : 'transparent' }]}
+              >
+                <Avatar
+                  name={member.name?.trim() || member.username || ''}
+                  size={36}
+                  uri={member.avatarUrl}
+                />
+              </Pressable>
+            );
+          })}
+        </ScrollRow>
+      ) : null}
+      {fields.labels ? (
+        <ScrollRow label={t('filter.labels')}>
+          {labels.map((label) => {
+            const on = value.labelIds.includes(label.id);
+            return (
+              <Pressable
+                key={label.id}
+                accessibilityRole="togglebutton"
+                accessibilityLabel={label.name}
+                accessibilityState={{ checked: on }}
+                onPress={() => set('labelIds', toggle(value.labelIds, label.id))}
+                style={[styles.labelCell, { borderColor: on ? color.paper : 'transparent' }]}
+              >
+                <LabelMark tint={label.color} size={30} />
+              </Pressable>
+            );
+          })}
+        </ScrollRow>
+      ) : null}
     </View>
   );
 }

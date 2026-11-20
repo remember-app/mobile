@@ -65,8 +65,29 @@ export function VideoFrame({
   onSpeedChange: (value: boolean) => void;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
+  const [firstFrame, setFirstFrame] = useState(false);
+  const posterOpacity = useSharedValue(1);
   const videoBox = boxFor(mediaSize(photo), width, height);
+  const poster = photo.thumb ?? photo.source;
   const { zoomed, pinch, move, zoomStyle } = useZoom({ width, height, info, onZoomed });
+
+  useEffect(() => {
+    setFirstFrame(false);
+    posterOpacity.value = 1;
+  }, [photo.playbackUrl, posterOpacity]);
+
+  useEffect(() => {
+    if (!active) {
+      setFirstFrame(false);
+      posterOpacity.value = 1;
+    }
+  }, [active, posterOpacity]);
+
+  useEffect(() => {
+    posterOpacity.value = withTiming(firstFrame ? 0 : 1, { duration: 160 });
+  }, [firstFrame, posterOpacity]);
+
+  const posterStyle = useAnimatedStyle(() => ({ opacity: posterOpacity.value }));
 
   useEffect(() => {
     const group = photo.projectId ?? null;
@@ -160,22 +181,27 @@ export function VideoFrame({
             onMutedChange={onMutedChange}
             speed={speed}
             zoomStyle={zoomStyle}
+            onFirstFrame={() => setFirstFrame(true)}
           />
-        ) : (photo.thumb ?? photo.source) ? (
-          <View style={videoBox}>
-            <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
+        ) : null}
+        {poster ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, styles.poster, posterStyle]}
+          >
+            <Animated.View style={[videoBox, zoomStyle]}>
               <Image
-                source={photo.thumb ?? photo.source}
+                source={poster}
                 group={photo.projectId}
                 style={StyleSheet.absoluteFill}
                 contentFit="contain"
                 cachePolicy="memory-disk"
               />
             </Animated.View>
-          </View>
-        ) : (
+          </Animated.View>
+        ) : !(active && uri) ? (
           <View style={videoBox} />
-        )}
+        ) : null}
       </Animated.View>
     </GestureDetector>
   );
@@ -192,6 +218,7 @@ function Video({
   onMutedChange,
   speed,
   zoomStyle,
+  onFirstFrame,
 }: {
   uri: string;
   box: Box;
@@ -203,6 +230,7 @@ function Video({
   onMutedChange: (value: boolean) => void;
   speed: number;
   zoomStyle: AnimatedStyle<ViewStyle>;
+  onFirstFrame: () => void;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -251,6 +279,7 @@ function Video({
               style={StyleSheet.absoluteFill}
               contentFit="contain"
               nativeControls={false}
+              onFirstFrameRender={onFirstFrame}
             />
           </Animated.View>
           <Pressable style={StyleSheet.absoluteFill} onPress={onTap} />
@@ -380,6 +409,10 @@ function Progress({ player, uri }: { player: VideoPlayer; uri: string }) {
 }
 
 const styles = StyleSheet.create({
+  poster: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   center: {
     position: 'absolute',
     left: '40%',

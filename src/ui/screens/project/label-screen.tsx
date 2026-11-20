@@ -3,20 +3,22 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { loadGallery, loadLabels } from '@/functionality';
+import { loadGallery, loadLabels, loadMembers } from '@/functionality';
 import type { LabelId, ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { LabelMark } from '@/ui/components/common/label';
 import { LoadError } from '@/ui/components/feedback/load-error';
+import { filterItems } from '@/ui/components/gallery/gallery-filters';
+import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
+import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-screen';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
-import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
+import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
-import { useAccount, useAvatar, useGallery, useLabels } from '@/ui/hooks';
+import { useGallerySelection } from '@/ui/gallery-selection';
+import { useAccount, useAvatar, useGallery, useLabels, useMembers } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
+import { HeaderTitle } from '@/ui/kit/chrome/header-title';
 import { BackButton } from '@/ui/kit/controls/button';
-import { Text } from '@/ui/kit/primitives/text';
 import { Missing } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
@@ -28,23 +30,28 @@ export default function LabelScreen() {
   const projectId = id as ProjectId;
   const labelKey = labelId as LabelId;
   const labels = useLabels(projectId);
+  const members = useMembers(projectId);
   const gallery = useGallery(projectId);
   const avatar = useAvatar();
   const account = useAccount();
   const label = labels.labels.find((entry) => entry.id === labelKey);
-  const { viewer: open, setViewer: setOpen, measureTile, onIndex } = usePhotoViewer();
+  const selection = useGallerySelection<string>();
+  const { filters, setFilters } = useGalleryFilters({ labelIds: [labelKey] });
 
   useEffect(() => {
     void loadLabels(projectId);
     void loadGallery(projectId);
+    void loadMembers(projectId).catch(() => undefined);
   }, [projectId]);
 
-  const labeled = useMemo(
-    () => gallery.items.filter((item) => item.labelIds.includes(labelKey)),
-    [gallery.items, labelKey],
+  const filtered = useMemo(() => filterItems(gallery.items, filters), [gallery.items, filters]);
+  const photos = useMemo<Photo[]>(
+    () => filtered.map((item) => ({ ...tileOf(item), selected: selection.has(item.id) })),
+    [filtered, selection],
   );
-  const photos = useMemo<Photo[]>(() => labeled.map(tileOf), [labeled]);
-  const viewerPhotos = useMemo(() => labeled.map(viewerOf), [labeled]);
+  const viewerPhotos = useMemo(() => filtered.map(viewerOf), [filtered]);
+  const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
+  const labelShown = filters.labelIds.includes(labelKey);
 
   if (!label) {
     return <Missing title={t('labels.title')} message={t('labels.notFound')} />;
@@ -52,51 +59,67 @@ export default function LabelScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ gestureEnabled: open === null }} />
-      <View style={styles.root}>
-        {photos.length === 0 ? (
+      <Stack.Screen options={{ gestureEnabled: galleryScreen.viewer === null }} />
+      <GalleryScreen
+        photos={photos}
+        viewerPhotos={viewerPhotos}
+        viewer={galleryScreen.viewer}
+        onOpen={galleryScreen.onOpen}
+        onClose={galleryScreen.close}
+        onIndex={galleryScreen.onIndex}
+        measureRef={galleryScreen.measureTile}
+        selection={selection}
+        hud={{
+          primary: {
+            kind: 'single',
+            label: labelShown ? t('labels.showAll') : t('labels.showLabel'),
+            onPress: () =>
+              setFilters((was) => ({
+                ...was,
+                labelIds: labelShown ? [] : [labelKey],
+              })),
+          },
+          canSelect: true,
+          onSelectingChange: (next) => {
+            if (!next) selection.clear();
+          },
+          filters,
+          onFiltersChange: setFilters,
+          labels: labels.labels,
+          members: members.members,
+          bottom: insets.bottom + space.s3,
+        }}
+        padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+        empty={
           gallery.status === 'error' ? (
             <LoadError onRetry={() => void loadGallery(projectId, true)} />
           ) : null
-        ) : (
-          <PhotoGrid
-            photos={photos}
-            onOpen={(index, rect) => setOpen({ index, rect })}
-            padding={{ top: insets.top + 60, bottom: insets.bottom + space.s4 }}
-            blankIndex={open?.index ?? null}
-            measureRef={measureTile}
-          />
-        )}
-        <BlurBar edge="top" style={styles.top}>
-          <View style={styles.side}>
-            <BackButton label={t('action.back')} onPress={() => goBack(router)} />
-          </View>
-          <View style={styles.head}>
-            <LabelMark tint={label.color} size={30} />
-            <Text role="barTitle" numberOfLines={1} style={styles.title}>
-              {label.name}
-            </Text>
-          </View>
-          <View style={styles.side} />
-        </BlurBar>
-        {open === null ? null : (
-          <PhotoViewer
-            photos={viewerPhotos}
-            initialIndex={open.index}
-            origin={open.rect}
-            onClose={() => setOpen(null)}
-            onIndex={onIndex}
-            author={account?.name ?? undefined}
-            authorAvatarUrl={avatar.url}
-            renderInfo={(index) => {
-              const photo = photos[index];
-              if (!photo) return null;
-              const item = gallery.items.find((entry) => entry.id === photo.id);
-              return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
-            }}
-          />
-        )}
-      </View>
+        }
+        author={account?.name ?? undefined}
+        authorAvatarUrl={avatar.url}
+        info={(index) => {
+          const photo = photos[index];
+          if (!photo) return null;
+          const item = gallery.items.find((entry) => entry.id === photo.id);
+          return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
+        }}
+        header={
+          <BlurBar edge="top" style={styles.top}>
+            <View style={styles.side}>
+              <BackButton label={t('action.back')} onPress={() => goBack(router)} />
+            </View>
+            <View style={styles.headCentre}>
+              <HeaderTitle
+                title={label.name}
+                icon={<LabelMark tint={label.color} size={30} />}
+                minWidth={0}
+                surface
+              />
+            </View>
+            <View style={styles.side} />
+          </BlurBar>
+        }
+      />
     </>
   );
 }
@@ -117,16 +140,8 @@ const styles = StyleSheet.create({
   side: {
     width: 44,
   },
-  head: {
+  headCentre: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.s2,
-    flexShrink: 1,
-  },
-  title: {
-    fontSize: 22,
-    lineHeight: 26,
   },
 });

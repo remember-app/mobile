@@ -20,7 +20,7 @@ export type Photo = {
   width?: number;
   height?: number;
   upload?: TileUpload;
-  select?: number | null;
+  selected?: boolean;
   required?: boolean;
   accent?: boolean;
   note?: string;
@@ -49,7 +49,6 @@ type Props = {
   measureRef?: MutableRefObject<MeasureTile | null>;
   onLoadOlder?: () => void;
   onScroll?: (offset: number) => void;
-  mark?: 'number' | 'check';
   emptyMark?: boolean;
 };
 
@@ -67,7 +66,6 @@ export function PhotoGrid({
   measureRef,
   onLoadOlder,
   onScroll,
-  mark,
   emptyMark,
 }: Props) {
   const topPad = padding?.top ?? 0;
@@ -87,6 +85,7 @@ export function PhotoGrid({
         const photo = photos[index];
         if (photo) row.push({ key: photo.id, index, photo });
       }
+      row.reverse();
       for (const item of row) {
         at.set(item.index, items.length);
         items.push(item);
@@ -137,6 +136,7 @@ export function PhotoGrid({
         extraData={blankIndex}
         numColumns={PHOTO_COLUMNS}
         keyExtractor={(item) => item.key}
+        inverted
         maintainVisibleContentPosition={{ disabled: true }}
         onEndReached={() => {
           if (userMoved.current) onLoadOlder?.();
@@ -150,7 +150,7 @@ export function PhotoGrid({
         onMomentumScrollBegin={() => {
           userMoved.current = true;
         }}
-        contentContainerStyle={{ paddingTop: topPad, paddingBottom: bottomPad }}
+        contentContainerStyle={{ paddingTop: bottomPad, paddingBottom: topPad }}
         style={styles.list}
         renderItem={({ item }) => {
           const { photo, index } = item;
@@ -170,10 +170,9 @@ export function PhotoGrid({
                   group={photo.projectId}
                   source={photo.source}
                   upload={photo.upload}
-                  select={photo.select}
+                  selected={photo.selected}
                   required={photo.required}
                   onRequire={onRequire ? () => onRequire(index) : undefined}
-                  mark={mark}
                   emptyMark={emptyMark}
                   accent={photo.accent}
                   note={photo.note}

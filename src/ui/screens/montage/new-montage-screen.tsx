@@ -71,7 +71,6 @@ import {
 } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
 import { Text } from '@/ui/kit/primitives/text';
-import { orderOf } from '@/ui/selection';
 import { space } from '@/ui/theme';
 
 export default function NewMontageScreen() {
@@ -212,7 +211,7 @@ export default function NewMontageScreen() {
   );
   const chosenSongs = songs.filter((song) => draft.musicIds.includes(song.originalId));
 
-  const selectedAt = useMemo(() => orderOf(draft.includeItemIds), [draft.includeItemIds]);
+  const included = useMemo(() => new Set(draft.includeItemIds), [draft.includeItemIds]);
 
   const shots = useMemo(() => {
     const visible = filterItems(gallery.items, filters);
@@ -229,10 +228,10 @@ export default function NewMontageScreen() {
     () =>
       shots.map((item) => ({
         ...tileOf(item),
-        select: selectedAt.get(item.id) ?? null,
+        selected: included.has(item.id),
         required: draft.requiredItemIds.includes(item.id),
       })),
-    [draft.requiredItemIds, selectedAt, shots],
+    [draft.requiredItemIds, included, shots],
   );
 
   const viewerPhotos = useMemo(() => shots.map(viewerOf), [shots]);
@@ -550,7 +549,7 @@ export default function NewMontageScreen() {
           onClose={() => setViewer(null)}
           onLoadMore={() => void loadMoreGallery(projectId)}
           onIndex={onIndex}
-          selected={selectedAt.has(shotIds[viewer.index] ?? '')}
+          selected={included.has(shotIds[viewer.index] ?? '')}
           onSelect={() => {
             const itemId = shotIds[viewer.index];
             if (itemId) toggleShot(itemId);

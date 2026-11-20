@@ -18,10 +18,9 @@ type Props = {
   group?: string | null;
   source: ImageSource | string | null;
   upload?: TileUpload;
-  select?: number | null;
+  selected?: boolean;
   required?: boolean;
   onRequire?: () => void;
-  mark?: 'number' | 'check';
   emptyMark?: boolean;
   accent?: boolean;
   note?: string;
@@ -37,10 +36,9 @@ export function PhotoTile({
   group,
   source,
   upload,
-  select,
+  selected,
   required,
   onRequire,
-  mark = 'number',
   emptyMark = true,
   accent,
   note,
@@ -51,7 +49,7 @@ export function PhotoTile({
   onSelect,
 }: Props) {
   const theme = useTheme();
-  const chosen = typeof select === 'number';
+  const chosen = selected === true;
   return (
     <Pressable onPress={onPress} style={styles.tile}>
       {source ? (
@@ -77,7 +75,7 @@ export function PhotoTile({
           </Text>
         </View>
       ) : null}
-      {select !== undefined && (chosen || emptyMark) ? (
+      {selected !== undefined && (chosen || emptyMark) ? (
         <Pressable
           onPress={onSelect}
           hitSlop={10}
@@ -90,15 +88,7 @@ export function PhotoTile({
               : styles.checkOff,
           ]}
         >
-          {chosen ? (
-            mark === 'check' ? (
-              <Check size={14} color={theme.color.onFill} strokeWidth={3} />
-            ) : (
-              <Text role="chipXs" tone="onFill">
-                {select}
-              </Text>
-            )
-          ) : null}
+          {chosen ? <Check size={14} color={theme.color.onFill} strokeWidth={3} /> : null}
         </Pressable>
       ) : null}
       {chosen && onRequire ? (

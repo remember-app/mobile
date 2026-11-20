@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/ui/kit/primitives/text';
-import { space } from '@/ui/theme';
+import { radius, space, useTheme } from '@/ui/theme';
 
 export const TITLE_MIN = 120;
 
@@ -11,14 +11,25 @@ export function HeaderTitle({
   icon,
   maxWidth,
   minWidth,
+  surface,
 }: {
   title: string;
   icon?: ReactNode;
   maxWidth?: number;
   minWidth?: number;
+  surface?: boolean;
 }) {
+  const { color } = useTheme();
   return (
-    <View style={[styles.head, { minWidth: minWidth ?? TITLE_MIN, maxWidth: maxWidth ?? '100%' }]}>
+    <View
+      style={[
+        styles.head,
+        surface
+          ? [styles.surface, { backgroundColor: color.surface, borderColor: color.line }]
+          : null,
+        { minWidth: minWidth ?? TITLE_MIN, maxWidth: maxWidth ?? '100%' },
+      ]}
+    >
       {icon}
       <Text role="barTitle" numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
         {title}
@@ -36,6 +47,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.s1,
     paddingHorizontal: space.s3,
+  },
+  surface: {
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
   },
   title: {
     flexShrink: 1,

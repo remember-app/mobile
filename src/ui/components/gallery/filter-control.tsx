@@ -7,7 +7,12 @@ import type { Label, Member } from '@/models';
 import { Icon } from '@/ui/kit/primitives/icon';
 import { useTheme } from '@/ui/theme';
 
-import { GalleryFiltersPanel, type GalleryFiltersValue } from './gallery-filters';
+import {
+  ALL_FILTER_FIELDS,
+  type GalleryFilterFields,
+  GalleryFiltersPanel,
+  type GalleryFiltersValue,
+} from './gallery-filters';
 
 const HEIGHT = 288;
 
@@ -20,6 +25,7 @@ export function FilterControl({
   filters,
   labels,
   members,
+  fields = ALL_FILTER_FIELDS,
   onChange,
 }: {
   chrome: SharedValue<number>;
@@ -30,6 +36,7 @@ export function FilterControl({
   filters: GalleryFiltersValue;
   labels: Label[];
   members: Member[];
+  fields?: GalleryFilterFields;
   onChange: (value: GalleryFiltersValue) => void;
 }) {
   const { t } = useTranslation();
@@ -67,6 +74,7 @@ export function FilterControl({
               value={filters}
               labels={labels}
               members={members}
+              fields={fields}
               onChange={onChange}
             />
           </Animated.View>

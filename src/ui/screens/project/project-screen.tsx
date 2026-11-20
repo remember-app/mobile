@@ -1,9 +1,9 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCheck, CopySlash, Tag, X } from 'lucide-react-native';
+import { CopySlash, Tag } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   attachItems,
@@ -37,24 +37,20 @@ import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import { GallerySkeleton } from '@/ui/components/feedback/skeletons';
-import { FilterControl } from '@/ui/components/gallery/filter-control';
-import {
-  filterItems,
-  type GalleryFiltersValue,
-  isFiltered,
-  NO_FILTERS,
-} from '@/ui/components/gallery/gallery-filters';
+import { filterItems } from '@/ui/components/gallery/gallery-filters';
 import { LabelMenu } from '@/ui/components/gallery/label-menu';
 import { SelectionActions } from '@/ui/components/gallery/selection-actions';
 import { SelectionBar } from '@/ui/components/gallery/selection-bar';
+import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
+import { GalleryScreen } from '@/ui/components/media/gallery-screen';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
-import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
+import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { ProjectHeader } from '@/ui/components/project/project-header';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
+import { useGallerySelection } from '@/ui/gallery-selection';
 import {
   useAccount,
   useAvatar,
@@ -69,11 +65,9 @@ import {
 import { ScreenLogoButton } from '@/ui/kit/chrome/backdrop';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
-import { ActionBar } from '@/ui/kit/controls/action-bar';
-import { Button, IconButton } from '@/ui/kit/controls/button';
+import { IconButton } from '@/ui/kit/controls/button';
 import { Missing } from '@/ui/screens/chrome';
-import { orderOf, toggledInSet } from '@/ui/selection';
-import { height, space } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 export default function ProjectScreen() {
   const { t } = useTranslation();
@@ -97,21 +91,13 @@ export default function ProjectScreen() {
     measureTile,
     onIndex: onViewerIndex,
   } = usePhotoViewer();
-  const [scrolling, setScrolling] = useState(false);
   const [selecting, setSelecting] = useState(false);
-  const [filtering, setFiltering] = useState(false);
-  const [filters, setFilters] = useState<GalleryFiltersValue>(NO_FILTERS);
+  const { filters, setFilters } = useGalleryFilters();
   const [labelMode, setLabelMode] = useState(false);
   const [labelMenu, setLabelMenu] = useState(false);
   const [activeLabelId, setActiveLabelId] = useState<LabelId | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const chrome = useSharedValue(0);
-  const actions = useSharedValue(0);
-  const filterAnim = useSharedValue(0);
-  const chromeOn = useRef(false);
+  const selection = useGallerySelection<string>();
   const replacedUploads = useRef(new Set<string>());
-  const opening = useRef(true);
-  const turning = useRef<'none' | 'open' | 'close'>('none');
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
   const progress = useSharedValue(1);
 
@@ -141,7 +127,6 @@ export default function ProjectScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      opening.current = false;
       progress.value = withTiming(0, { duration: 320 });
     }, 60);
     return () => clearTimeout(timer);
@@ -156,7 +141,6 @@ export default function ProjectScreen() {
   const visibleItems = useMemo(() => filterItems(gallery.items, filters), [filters, gallery.items]);
 
   const photos = useMemo<Photo[]>(() => {
-    const order = orderOf(selected);
     const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
     const files = visibleItems.map((item) => {
       const tile = tileOf(item);
@@ -167,7 +151,7 @@ export default function ProjectScreen() {
           source: localPreviewOf(item.id) ?? tile.source,
           original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
           playbackUrl: item.kind === 'video' ? (localPreviewOf(item.id) ?? tile.playbackUrl) : null,
-          select: selecting ? (order.get(item.id) ?? null) : undefined,
+          selected: selecting ? selection.has(item.id) : undefined,
           author:
             filters.uploaderIds.length > 0
               ? item.uploader?.name?.trim() || item.uploader?.username || null
@@ -211,39 +195,14 @@ export default function ProjectScreen() {
         };
       });
     return [...files, ...sending]
-      .sort((left, right) => (filters.sort === 'new' ? left.at - right.at : right.at - left.at))
+      .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [filters, visibleItems, labelMode, labels.labels, pending, selecting, selected]);
+  }, [filters, visibleItems, labelMode, labels.labels, pending, selecting, selection]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () => photos.map((photo) => ({ ...photo, source: photo.preview ?? photo.source })),
     [photos],
   );
-
-  const actionStyle = useAnimatedStyle(() => ({
-    opacity: 1 - chrome.value,
-    transform: [{ translateY: chrome.value * 96 }],
-  }));
-  const rightStyle = useAnimatedStyle(() => ({
-    opacity: chrome.value,
-    transform: [{ translateX: (1 - chrome.value) * 72 }],
-  }));
-  const filtered = isFiltered(filters);
-  const filterFull = width - space.s4 * 2;
-
-  useEffect(() => {
-    chrome.value = withTiming(scrolling || selecting || filtering || filtered ? 1 : 0, {
-      duration: 220,
-    });
-  }, [chrome, scrolling, selecting, filtering, filtered]);
-
-  useEffect(() => {
-    actions.value = withTiming(selecting ? 1 : 0, { duration: 220 });
-  }, [actions, selecting]);
-
-  useEffect(() => {
-    filterAnim.value = withTiming(filtering ? 1 : 0, { duration: 260 });
-  }, [filterAnim, filtering]);
 
   if (!project && projects.status !== 'loading') {
     return <Missing title={t('project.title')} message={t('project.notFound')} />;
@@ -260,27 +219,8 @@ export default function ProjectScreen() {
   const top = insets.top + space.s2 + 44 + (banner ? card + space.s2 * 2 + 2 : 0) + space.s2;
   const edge = insets.top + space.s2 + 44 + space.s2;
   const bottom = insets.bottom + 76;
-  const hideAfter = height.primary + space.s2 + insets.bottom;
-  const scrolled = (offset: number) => {
-    if (opening.current) return;
-    const moving = offset > hideAfter;
-    const next = moving ? 'close' : 'open';
-    if (turning.current === next) return;
-    turning.current = next;
-    progress.value = withTiming(next === 'close' ? 1 : 0, { duration: 260 });
-    if (chromeOn.current !== moving) {
-      chromeOn.current = moving;
-      setScrolling(moving);
-    }
-  };
   const toggle = (id: string) => {
-    setSelected((was) => toggledInSet(was, id));
-  };
-  const toggledSelection = () => {
-    if (selecting) setSelected(new Set());
-    setLabelMode(false);
-    setLabelMenu(false);
-    setSelecting(!selecting);
+    selection.toggle(id);
   };
   const activeLabel = labels.labels.find((label) => label.id === activeLabelId) ?? labels.labels[0];
   const toggleLabels = () => {
@@ -305,14 +245,14 @@ export default function ProjectScreen() {
       : attachItems(projectId, labelId, [itemId]));
   };
   const selectDuplicates = () => {
-    setSelected(new Set(nearDuplicateExtras(visibleItems)));
+    selection.replace(nearDuplicateExtras(visibleItems));
   };
-  const chosen = () => gallery.items.filter((item) => selected.has(item.id));
+  const chosen = () => gallery.items.filter((item) => selection.has(item.id));
   const saveSelected = async () => {
     const items = chosen();
     if (items.length === 0) return;
     const result = await saveItemsToPhone(items);
-    setSelected(new Set());
+    selection.clear();
     setSelecting(false);
     Alert.alert(t('action.save'), t('project.saved', { count: result.saved }));
   };
@@ -323,7 +263,7 @@ export default function ProjectScreen() {
       confirm: t('action.delete'),
       destructive: true,
       onConfirm: () => {
-        setSelected(new Set());
+        selection.clear();
         setSelecting(false);
         void removeItems(
           projectId,
@@ -344,7 +284,7 @@ export default function ProjectScreen() {
       const links = items.map((item) => item.links.original).filter((link) => link !== null);
       if (links.length > 0) await shareText(links.join('\n'));
     }
-    setSelected(new Set());
+    selection.clear();
     setSelecting(false);
   };
   const pick = () => router.navigate({ pathname: '/project/[id]/pick', params: { id: projectId } });
@@ -356,50 +296,121 @@ export default function ProjectScreen() {
     <>
       <Stack.Screen options={{ gestureEnabled: open === null && !selecting }} />
       <View style={styles.root}>
-        {loading ? (
-          <GallerySkeleton top={top} bottom={bottom} />
-        ) : photos.length === 0 ? (
-          gallery.status === 'error' ? (
-            <LoadError onRetry={() => void loadGallery(projectId, true)} />
-          ) : (
-            <>
-              <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]} />
-              {empty ? <ScreenLogoButton label={t('project.add')} onPress={pick} /> : null}
-            </>
-          )
-        ) : (
-          <PhotoGrid
-            photos={photos}
-            onOpen={(index, rect) => {
-              const photo = photos[index];
-              if (!photo) return;
-              if (photo.upload?.failed) {
-                retryUpload(photo.id);
-                return;
-              }
-              setOpen({ index, rect });
-            }}
-            onSelect={
-              selecting
-                ? (index) => {
-                    const photo = photos[index];
-                    if (!photo || photo.upload) return;
-                    if (labelMode && activeLabel) {
-                      toggleLabel(photo.id as ProjectItemId, activeLabel.id);
-                      return;
-                    }
-                    toggle(photo.id);
-                  }
-                : undefined
+        <GalleryScreen
+          photos={photos}
+          viewerPhotos={viewerPhotos}
+          viewer={open}
+          onOpen={(index, rect) => {
+            const photo = photos[index];
+            if (!photo) return;
+            if (photo.upload?.failed) {
+              retryUpload(photo.id);
+              return;
             }
-            padding={{ top: edge, bottom }}
-            blankIndex={open?.index ?? null}
-            measureRef={measureTile}
-            mark="check"
-            onLoadOlder={() => void loadMoreGallery(projectId)}
-            onScroll={scrolled}
-          />
-        )}
+            setOpen({ index, rect });
+          }}
+          onClose={() => setOpen(null)}
+          onIndex={onViewerIndex}
+          measureRef={measureTile}
+          onSelect={
+            selecting
+              ? (index) => {
+                  const photo = photos[index];
+                  if (!photo || photo.upload) return;
+                  if (labelMode && activeLabel) {
+                    toggleLabel(photo.id as ProjectItemId, activeLabel.id);
+                    return;
+                  }
+                  toggle(photo.id);
+                }
+              : undefined
+          }
+          onLoadMore={() => void loadMoreGallery(projectId)}
+          padding={{ top: edge, bottom }}
+          selection={selection}
+          hud={{
+            primary: {
+              kind: 'single',
+              label: canCreate ? t('montage.create') : t('project.add'),
+              onPress: canCreate ? create : pick,
+            },
+            canSelect: true,
+            onSelectingChange: (next) => {
+              setSelecting(next);
+              if (!next) {
+                selection.clear();
+                setLabelMode(false);
+                setLabelMenu(false);
+              }
+            },
+            filters,
+            onFiltersChange: setFilters,
+            labels: labels.labels,
+            members: members.members,
+            bottom: insets.bottom + space.s3,
+            selectionTools: (
+              <>
+                <IconButton
+                  icon={CopySlash}
+                  label={t('action.removeDuplicates')}
+                  tone="surface"
+                  size={52}
+                  onPress={selectDuplicates}
+                />
+                <IconButton
+                  icon={Tag}
+                  label={t('labels.title')}
+                  tone="surface"
+                  size={52}
+                  on={labelMode}
+                  disabled={labels.labels.length === 0}
+                  onPress={toggleLabels}
+                />
+              </>
+            ),
+            renderSelectionActions: (progress) =>
+              labelMode ? null : (
+                <SelectionActions
+                  progress={progress}
+                  bottom={insets.bottom + space.s3 + 52 + space.s2}
+                  onSave={saveSelected}
+                  onDelete={deleteSelected}
+                  onShare={shareSelected}
+                />
+              ),
+          }}
+          author={account?.name ?? undefined}
+          authorAvatarUrl={avatar.url}
+          onDelete={
+            selecting
+              ? undefined
+              : (photo) => {
+                  setOpen(null);
+                  if (pending.some((upload) => upload.localId === photo.id)) {
+                    void removeUpload(photo.id);
+                    return;
+                  }
+                  void removeItem(projectId, photo.id as ProjectItemId);
+                }
+          }
+          info={(index) => {
+            const photo = photos[index];
+            if (!photo) return null;
+            const item = gallery.items.find((entry) => entry.id === photo.id);
+            return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
+          }}
+          loading={loading ? <GallerySkeleton top={top} bottom={bottom} /> : undefined}
+          empty={
+            gallery.status === 'error' ? (
+              <LoadError onRetry={() => void loadGallery(projectId, true)} />
+            ) : (
+              <>
+                <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]} />
+                {empty ? <ScreenLogoButton label={t('project.add')} onPress={pick} /> : null}
+              </>
+            )
+          }
+        />
         <BlurBar edge="top">
           <ProjectHeader
             projectId={projectId}
@@ -430,91 +441,12 @@ export default function ProjectScreen() {
             ]}
           />
         ) : null}
-        {empty ? null : (
-          <ActionBar>
-            <Animated.View
-              style={actionStyle}
-              pointerEvents={scrolling || selecting ? 'none' : 'auto'}
-            >
-              <Button
-                label={canCreate ? t('montage.create') : t('project.add')}
-                variant="primary"
-                onPress={canCreate ? create : pick}
-              />
-            </Animated.View>
-          </ActionBar>
-        )}
-        {filtering ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('action.close')}
-            onPress={() => setFiltering(false)}
-            style={[styles.filterBackdrop, { top: insets.top + 52 }]}
-          />
-        ) : null}
-        {open === null ? (
-          <View
-            pointerEvents={scrolling || selecting || filtering || filtered ? 'box-none' : 'none'}
-            style={[styles.sideBar, { bottom: insets.bottom + space.s3 }]}
-          >
-            <FilterControl
-              chrome={chrome}
-              anim={filterAnim}
-              filtering={filtering}
-              full={filterFull}
-              onToggle={() => setFiltering((was) => !was)}
-              filters={filters}
-              labels={labels.labels}
-              members={members.members}
-              onChange={setFilters}
-            />
-            <Animated.View style={[rightStyle, styles.rightButtons]}>
-              {selecting ? (
-                <IconButton
-                  icon={CopySlash}
-                  label={t('action.removeDuplicates')}
-                  tone="surface"
-                  size={52}
-                  onPress={selectDuplicates}
-                />
-              ) : null}
-              {selecting ? (
-                <IconButton
-                  icon={Tag}
-                  label={t('labels.title')}
-                  tone="surface"
-                  size={52}
-                  on={labelMode}
-                  disabled={labels.labels.length === 0}
-                  onPress={toggleLabels}
-                />
-              ) : null}
-              <IconButton
-                icon={selecting ? X : CheckCheck}
-                label={selecting ? t('action.done') : t('project.select')}
-                tone="surface"
-                size={52}
-                on={selecting}
-                onPress={toggledSelection}
-              />
-            </Animated.View>
-          </View>
-        ) : null}
-        {selecting && !labelMode ? (
-          <SelectionActions
-            progress={actions}
-            bottom={insets.bottom + space.s3 + 52 + space.s2}
-            onSave={saveSelected}
-            onDelete={deleteSelected}
-            onShare={shareSelected}
-          />
-        ) : null}
         {selecting ? (
           <SelectionBar
             top={insets.top + 52}
             labelMode={labelMode}
             activeLabel={activeLabel}
-            selectedCount={selected.size}
+            selectedCount={selection.ids.size}
             onMenu={() => setLabelMenu((was) => !was)}
           />
         ) : null}
@@ -527,45 +459,6 @@ export default function ProjectScreen() {
             onClose={() => setLabelMenu(false)}
           />
         ) : null}
-        {open === null ? null : (
-          <PhotoViewer
-            photos={viewerPhotos}
-            initialIndex={open.index}
-            origin={open.rect}
-            onClose={() => setOpen(null)}
-            onLoadMore={() => void loadMoreGallery(projectId)}
-            onIndex={onViewerIndex}
-            author={account?.name ?? undefined}
-            authorAvatarUrl={avatar.url}
-            selected={selecting ? selected.has(photos[open.index]?.id ?? '') : undefined}
-            onSelect={
-              selecting
-                ? () => {
-                    const photo = photos[open.index];
-                    if (photo && !photo.upload) toggle(photo.id);
-                  }
-                : undefined
-            }
-            onDelete={
-              selecting
-                ? undefined
-                : (photo) => {
-                    setOpen(null);
-                    if (pending.some((upload) => upload.localId === photo.id)) {
-                      void removeUpload(photo.id);
-                      return;
-                    }
-                    void removeItem(projectId, photo.id as ProjectItemId);
-                  }
-            }
-            renderInfo={(index) => {
-              const photo = photos[index];
-              if (!photo) return null;
-              const item = gallery.items.find((entry) => entry.id === photo.id);
-              return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
-            }}
-          />
-        )}
       </View>
     </>
   );

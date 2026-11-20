@@ -5,22 +5,27 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { currentToken, refreshGalleryAll, refreshSession } from '@/functionality';
+import {
+  currentToken,
+  loadLabels,
+  loadMembers,
+  refreshGalleryAll,
+  refreshSession,
+} from '@/functionality';
 import { analyzeItems, previewAnalysis } from '@/integrations/api';
-import { itemDate } from '@/models';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
-import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
+import { filterItems } from '@/ui/components/gallery/gallery-filters';
+import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
+import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-screen';
+import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
-import { useGallery } from '@/ui/hooks';
+import { useGallerySelection } from '@/ui/gallery-selection';
+import { useGallery, useLabels, useMembers } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
-import { ActionBar } from '@/ui/kit/controls/action-bar';
-import { BackButton, Button, IconButton } from '@/ui/kit/controls/button';
+import { BackButton, IconButton } from '@/ui/kit/controls/button';
 import { CircularSpinner } from '@/ui/kit/display/circular-spinner';
 import { Text } from '@/ui/kit/primitives/text';
-import { orderOf, toggledInSet } from '@/ui/selection';
 import { radius, space, useTheme } from '@/ui/theme';
 
 type Quote = { queued: number; tokens: number };
@@ -33,15 +38,19 @@ export default function AnalyzeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const gallery = useGallery(projectId);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const labels = useLabels(projectId);
+  const members = useMembers(projectId);
+  const selection = useGallerySelection<string>();
+  const { filters, setFilters } = useGalleryFilters();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(gallery.items.length === 0);
   const [busy, setBusy] = useState(false);
-  const { viewer, setViewer, measureTile, onIndex } = usePhotoViewer();
 
   useEffect(() => {
     let live = true;
     setLoading(gallery.items.length === 0);
+    void loadLabels(projectId).catch(() => undefined);
+    void loadMembers(projectId).catch(() => undefined);
     void refreshGalleryAll(projectId)
       .catch(() => undefined)
       .finally(() => {
@@ -54,25 +63,22 @@ export default function AnalyzeScreen() {
 
   const items = useMemo(
     () =>
-      gallery.items
-        .filter((item) => item.analysis === null)
-        .sort((left, right) => itemDate(left).getTime() - itemDate(right).getTime()),
-    [gallery.items],
+      filterItems(
+        gallery.items.filter((item) => item.analysis === null),
+        filters,
+      ),
+    [filters, gallery.items],
   );
-
-  const allAnalyzed =
-    gallery.items.length > 0 && gallery.items.every((item) => item.analysis !== null);
-
-  const order = useMemo(() => orderOf(selected), [selected]);
 
   const photos = useMemo<Photo[]>(
-    () => items.map((item) => ({ ...tileOf(item), select: order.get(item.id) ?? null })),
-    [items, order],
+    () => items.map((item) => ({ ...tileOf(item), selected: selection.has(item.id) })),
+    [items, selection],
   );
   const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
+  const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
 
   useEffect(() => {
-    if (selected.size === 0) {
+    if (selection.ids.size === 0) {
       setQuote(null);
       return;
     }
@@ -80,7 +86,7 @@ export default function AnalyzeScreen() {
     if (!token) return;
     let live = true;
     const timer = setTimeout(() => {
-      void previewAnalysis(token, projectId, [...selected] as ProjectItemId[])
+      void previewAnalysis(token, projectId, selection.list as ProjectItemId[])
         .then((next) => {
           if (live) setQuote(next);
         })
@@ -92,15 +98,15 @@ export default function AnalyzeScreen() {
       live = false;
       clearTimeout(timer);
     };
-  }, [projectId, selected]);
+  }, [projectId, selection]);
 
   const toggle = (index: number) => {
     const photo = photos[index];
     if (!photo) return;
-    setSelected((was) => toggledInSet(was, photo.id));
+    selection.toggle(photo.id);
   };
 
-  const ids = () => [...selected] as ProjectItemId[];
+  const ids = () => selection.list as ProjectItemId[];
 
   const start = async (token: string) => {
     setBusy(true);
@@ -119,7 +125,7 @@ export default function AnalyzeScreen() {
   };
 
   const confirm = async () => {
-    if (selected.size === 0 || busy) return;
+    if (selection.ids.size === 0 || busy) return;
     const token = currentToken();
     if (!token) return;
     setBusy(true);
@@ -131,7 +137,7 @@ export default function AnalyzeScreen() {
       }
       Alert.alert(
         t('montage.analysisConfirmTitle'),
-        t('montage.analysisConfirmText', { count: selected.size, tokens: next.tokens }),
+        t('montage.analysisConfirmText', { count: selection.ids.size, tokens: next.tokens }),
         [
           { text: t('action.cancel'), style: 'cancel' },
           { text: t('montage.analyze'), onPress: () => void start(token) },
@@ -145,96 +151,88 @@ export default function AnalyzeScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      {loading ? (
-        <View style={styles.centre}>
-          <CircularSpinner size={32} />
-        </View>
-      ) : photos.length === 0 ? null : (
-        <PhotoGrid
-          photos={photos}
-          onOpen={(index, rect) => setViewer({ index, rect })}
-          onSelect={toggle}
-          mark="check"
-          padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
-          blankIndex={viewer?.index ?? null}
-          measureRef={measureTile}
-        />
-      )}
-      <BlurBar edge="top" style={styles.top}>
-        <BackButton label={t('action.back')} onPress={() => goBack(router)} />
-        <View style={styles.headCentre}>
-          <View
-            style={[
-              styles.titleBox,
-              { backgroundColor: theme.color.surface, borderColor: theme.color.line },
-            ]}
-          >
-            <Text role="barTitle" numberOfLines={1}>
-              {t('montage.analysisTitle')}
-            </Text>
+    <GalleryScreen
+      photos={photos}
+      viewerPhotos={viewerPhotos}
+      viewer={galleryScreen.viewer}
+      onOpen={galleryScreen.onOpen}
+      onClose={galleryScreen.onClose}
+      onIndex={galleryScreen.onIndex}
+      measureRef={galleryScreen.measureTile}
+      onSelect={toggle}
+      selection={selection}
+      padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+      loading={
+        loading ? (
+          <View style={styles.centre}>
+            <CircularSpinner size={32} />
           </View>
-        </View>
-        <IconButton
-          icon={ListChecks}
-          label={t('montage.journal.analysis')}
-          tone="surface"
-          size={44}
-          onPress={() =>
-            router.navigate({
-              pathname: '/project/[id]/analysis-jobs',
-              params: { id: projectId },
-            })
-          }
-        />
-      </BlurBar>
-      {allAnalyzed ? null : (
-        <ActionBar>
-          {selected.size > 0 ? (
-            <Button
-              label={t('filter.reset')}
-              variant="secondary"
-              style={styles.reset}
-              onPress={() => setSelected(new Set())}
-            />
-          ) : null}
-          <Button
-            label={
-              selected.size > 0
-                ? t('montage.analyzeCount', {
-                    count: selected.size,
-                    tokens: quote?.tokens ?? 0,
-                  })
-                : t('montage.analyze')
+        ) : undefined
+      }
+      header={
+        <BlurBar edge="top" style={styles.top}>
+          <BackButton label={t('action.back')} onPress={() => goBack(router)} />
+          <View style={styles.headCentre}>
+            <View
+              style={[
+                styles.titleBox,
+                { backgroundColor: theme.color.surface, borderColor: theme.color.line },
+              ]}
+            >
+              <Text role="barTitle" numberOfLines={1}>
+                {t('montage.analysisTitle')}
+              </Text>
+            </View>
+          </View>
+          <IconButton
+            icon={ListChecks}
+            label={t('montage.journal.analysis')}
+            tone="surface"
+            size={44}
+            onPress={() =>
+              router.navigate({
+                pathname: '/project/[id]/analysis-jobs',
+                params: { id: projectId },
+              })
             }
-            variant="primary"
-            disabled={selected.size === 0 || busy}
-            onPress={() => void confirm()}
           />
-        </ActionBar>
-      )}
-      {viewer === null ? null : (
-        <PhotoViewer
-          photos={viewerPhotos}
-          initialIndex={viewer.index}
-          origin={viewer.rect}
-          onClose={() => setViewer(null)}
-          onIndex={onIndex}
-          selected={selected.has(photos[viewer.index]?.id ?? '')}
-          onSelect={() => toggle(viewer.index)}
-        />
-      )}
-    </View>
+        </BlurBar>
+      }
+      hud={{
+        primary: {
+          kind: 'single',
+          label:
+            selection.ids.size > 0
+              ? t('montage.analyzeCount', {
+                  count: selection.ids.size,
+                  tokens: quote?.tokens ?? 0,
+                })
+              : t('montage.order.selectAll'),
+          onPress: () => {
+            if (selection.ids.size > 0) {
+              void confirm();
+              return;
+            }
+            selection.replace(items.map((item) => item.id));
+          },
+          disabled: busy,
+        },
+        selectionDefault: true,
+        canSelect: true,
+        onSelectingChange: (next) => {
+          if (!next) selection.clear();
+        },
+        filters,
+        onFiltersChange: setFilters,
+        labels: labels.labels,
+        members: members.members,
+        bottom: insets.bottom + space.s3,
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  reset: {
-    marginBottom: space.s2,
-  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',
