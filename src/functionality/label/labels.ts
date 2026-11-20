@@ -36,7 +36,7 @@ const states = new Map<ProjectId, LabelsState>();
 const inFlight = new Map<ProjectId, Promise<void>>();
 const listeners = new Set<() => void>();
 
-const cacheName = (projectId: ProjectId) => `labels-${projectId}`;
+const cacheName = (projectId: ProjectId) => `labels-v2-${projectId}`;
 
 export const labelsState = (projectId: ProjectId): LabelsState => states.get(projectId) ?? EMPTY;
 

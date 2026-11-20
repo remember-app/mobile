@@ -38,7 +38,7 @@ const inFlight = new Map<ProjectId, Promise<void>>();
 const itemLoads = new Map<string, Promise<Item>>();
 const listeners = new Set<() => void>();
 
-const cacheName = (projectId: ProjectId) => `gallery-v2-${projectId}`;
+const cacheName = (projectId: ProjectId) => `gallery-v3-${projectId}`;
 
 export const galleryState = (projectId: ProjectId | undefined): GalleryState =>
   projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;

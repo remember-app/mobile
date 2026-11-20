@@ -32,7 +32,7 @@ const states = new Map<ProjectId, MoviesState>();
 const inFlight = new Map<ProjectId, Promise<void>>();
 const listeners = new Set<() => void>();
 
-const cacheName = (projectId: ProjectId) => `movies-${projectId}`;
+const cacheName = (projectId: ProjectId) => `movies-v2-${projectId}`;
 
 export const moviesState = (projectId: ProjectId | undefined): MoviesState =>
   projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;

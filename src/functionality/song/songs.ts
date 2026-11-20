@@ -36,8 +36,8 @@ let library: SongsState = EMPTY;
 let libraryInFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
-const projectCache = (projectId: ProjectId) => `songs-v2-${projectId}`;
-const libraryCache = 'songs-library-v2';
+const projectCache = (projectId: ProjectId) => `songs-v3-${projectId}`;
+const libraryCache = 'songs-library-v3';
 
 export const projectSongsState = (projectId: ProjectId): SongsState =>
   projectStates.get(projectId) ?? EMPTY;
