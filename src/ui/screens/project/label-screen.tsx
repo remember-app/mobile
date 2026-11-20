@@ -11,7 +11,7 @@ import { LoadError } from '@/ui/components/feedback/load-error';
 import { filterItems } from '@/ui/components/gallery/gallery-filters';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
 import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-screen';
-import { MediaInfo } from '@/ui/components/media/info/media-info';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { useGallerySelection } from '@/ui/gallery-selection';
@@ -32,6 +32,7 @@ export default function LabelScreen() {
   const labels = useLabels(projectId);
   const members = useMembers(projectId);
   const gallery = useGallery(projectId);
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const avatar = useAvatar();
   const account = useAccount();
   const label = labels.labels.find((entry) => entry.id === labelKey);
@@ -97,12 +98,7 @@ export default function LabelScreen() {
         }
         author={account?.name ?? undefined}
         authorAvatarUrl={avatar.url}
-        info={(index) => {
-          const photo = photos[index];
-          if (!photo) return null;
-          const item = gallery.items.find((entry) => entry.id === photo.id);
-          return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
-        }}
+        info={mediaInfo}
         header={
           <BlurBar edge="top" style={styles.top}>
             <View style={styles.side}>

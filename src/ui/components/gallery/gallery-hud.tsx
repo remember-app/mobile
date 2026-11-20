@@ -16,6 +16,7 @@ import { space } from '@/ui/theme';
 
 import { FilterControl } from './filter-control';
 import type { GalleryFilterFields, GalleryFiltersValue } from './gallery-filters';
+import { GalleryLayer } from './gallery-layer';
 
 export type GalleryPrimary =
   | { kind: 'single'; label: string; onPress: () => void; disabled?: boolean }
@@ -32,6 +33,7 @@ type Props = {
   filterAnim: SharedValue<number>;
   actionsOpen: boolean;
   hidden: boolean;
+  reveal?: SharedValue<number>;
   filtering: boolean;
   onFilterToggle: () => void;
   filters: GalleryFiltersValue;
@@ -53,6 +55,7 @@ export function GalleryHud({
   filterAnim,
   actionsOpen,
   hidden,
+  reveal,
   filtering,
   onFilterToggle,
   filters,
@@ -85,12 +88,10 @@ export function GalleryHud({
     transform: [{ translateX: (1 - chrome.value) * 72 }],
   }));
 
-  if (hidden) return null;
-
   const full = width - space.s4 * 2;
 
   return (
-    <>
+    <GalleryLayer hidden={hidden} reveal={reveal}>
       {primary ? (
         <ActionBar>
           <Animated.View style={primaryStyle} pointerEvents={actionsOpen ? 'none' : 'auto'}>
@@ -163,7 +164,7 @@ export function GalleryHud({
         </Animated.View>
       </View>
       {selecting && actionsOpen && renderSelectionActions ? renderSelectionActions(actions) : null}
-    </>
+    </GalleryLayer>
   );
 }
 

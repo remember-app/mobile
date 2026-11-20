@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { attachItems, detachItems, loadLabels, updateItem } from '@/functionality';
@@ -11,6 +11,19 @@ import { CaptionField } from './caption-field';
 import { LabelsBlock } from './labels-block';
 import { MetaCard, type PhotoMeta } from './meta-card';
 import { PlaceMap } from './place-map';
+
+/** Сведения о файле для просмотрщика: по идентификатору кадра, а не по индексу —
+ *  ленты экранов сортируют и дополняют кадры по-своему. */
+export function useMediaInfo(projectId: ProjectId, items: readonly Item[]) {
+  const byId = useMemo(() => new Map(items.map((item) => [item.id, item] as const)), [items]);
+  return useCallback(
+    (id: string) => {
+      const item = byId.get(id);
+      return item ? <MediaInfo key={id} projectId={projectId} item={item} /> : null;
+    },
+    [byId, projectId],
+  );
+}
 
 export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Item }) {
   const labels = useLabels(projectId);

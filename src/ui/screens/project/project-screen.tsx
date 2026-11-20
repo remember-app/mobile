@@ -43,10 +43,10 @@ import { SelectionActions } from '@/ui/components/gallery/selection-actions';
 import { SelectionBar } from '@/ui/components/gallery/selection-bar';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
 import { GalleryScreen } from '@/ui/components/media/gallery-screen';
-import { MediaInfo } from '@/ui/components/media/info/media-info';
+import { useGalleryViewer } from '@/ui/components/media/gallery-viewer';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf } from '@/ui/components/media/photo-item';
-import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { ProjectHeader } from '@/ui/components/project/project-header';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
@@ -79,6 +79,7 @@ export default function ProjectScreen() {
   const projects = useProjects();
   const project = useProjectCard(projectId);
   const gallery = useGallery(projectId);
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const labels = useLabels(projectId);
   const members = useMembers(projectId);
   const montages = useMontages(projectId);
@@ -90,7 +91,7 @@ export default function ProjectScreen() {
     setViewer: setOpen,
     measureTile,
     onIndex: onViewerIndex,
-  } = usePhotoViewer();
+  } = useGalleryViewer();
   const [selecting, setSelecting] = useState(false);
   const { filters, setFilters } = useGalleryFilters();
   const [labelMode, setLabelMode] = useState(false);
@@ -393,12 +394,59 @@ export default function ProjectScreen() {
                   void removeItem(projectId, photo.id as ProjectItemId);
                 }
           }
-          info={(index) => {
-            const photo = photos[index];
-            if (!photo) return null;
-            const item = gallery.items.find((entry) => entry.id === photo.id);
-            return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
-          }}
+          info={mediaInfo}
+          header={
+            <>
+              <BlurBar edge="top">
+                <ProjectHeader
+                  projectId={projectId}
+                  title={title}
+                  card={card}
+                  progress={progress}
+                  onBack={() => goBack(router)}
+                  onMembers={() =>
+                    router.navigate({ pathname: '/project/[id]/info', params: { id: projectId } })
+                  }
+                />
+              </BlurBar>
+              {failed.length > 2 ? (
+                <NoticeBanner
+                  top={top}
+                  text={t('project.uploadsFailed', { count: failed.length })}
+                  actions={[
+                    {
+                      label: t('project.cancelUploads'),
+                      onPress: () => void removeProjectUploads(projectId),
+                    },
+                    {
+                      label: t('project.retryUploads'),
+                      onPress: () => {
+                        for (const upload of failed) retryUpload(upload.localId);
+                      },
+                    },
+                  ]}
+                />
+              ) : null}
+              {selecting ? (
+                <SelectionBar
+                  top={insets.top + 52}
+                  labelMode={labelMode}
+                  activeLabel={activeLabel}
+                  selectedCount={selection.ids.size}
+                  onMenu={() => setLabelMenu((was) => !was)}
+                />
+              ) : null}
+              {selecting && labelMode && labelMenu && activeLabel ? (
+                <LabelMenu
+                  top={insets.top + 52 + 48}
+                  labels={labels.labels}
+                  activeLabel={activeLabel}
+                  onChoose={chooseLabel}
+                  onClose={() => setLabelMenu(false)}
+                />
+              ) : null}
+            </>
+          }
           loading={loading ? <GallerySkeleton top={top} bottom={bottom} /> : undefined}
           empty={
             gallery.status === 'error' ? (
@@ -411,54 +459,6 @@ export default function ProjectScreen() {
             )
           }
         />
-        <BlurBar edge="top">
-          <ProjectHeader
-            projectId={projectId}
-            title={title}
-            card={card}
-            progress={progress}
-            onBack={() => goBack(router)}
-            onMembers={() =>
-              router.navigate({ pathname: '/project/[id]/info', params: { id: projectId } })
-            }
-          />
-        </BlurBar>
-        {failed.length > 2 ? (
-          <NoticeBanner
-            top={top}
-            text={t('project.uploadsFailed', { count: failed.length })}
-            actions={[
-              {
-                label: t('project.cancelUploads'),
-                onPress: () => void removeProjectUploads(projectId),
-              },
-              {
-                label: t('project.retryUploads'),
-                onPress: () => {
-                  for (const upload of failed) retryUpload(upload.localId);
-                },
-              },
-            ]}
-          />
-        ) : null}
-        {selecting ? (
-          <SelectionBar
-            top={insets.top + 52}
-            labelMode={labelMode}
-            activeLabel={activeLabel}
-            selectedCount={selection.ids.size}
-            onMenu={() => setLabelMenu((was) => !was)}
-          />
-        ) : null}
-        {selecting && labelMode && labelMenu && activeLabel ? (
-          <LabelMenu
-            top={insets.top + 52 + 48}
-            labels={labels.labels}
-            activeLabel={activeLabel}
-            onChoose={chooseLabel}
-            onClose={() => setLabelMenu(false)}
-          />
-        ) : null}
       </View>
     </>
   );

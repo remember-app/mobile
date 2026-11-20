@@ -17,11 +17,12 @@ import {
 import { fileDigest } from '@/integrations/files/parts';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
+import { GalleryLayer } from '@/ui/components/gallery/gallery-layer';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
 import { GalleryScreen } from '@/ui/components/media/gallery-screen';
+import { useGalleryViewer } from '@/ui/components/media/gallery-viewer';
 import { PHOTO_COLUMNS, type Photo } from '@/ui/components/media/photo-grid';
 import { deviceTileOf, deviceViewerOf } from '@/ui/components/media/photo-item';
-import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import { useProjectCard, useUploads } from '@/ui/hooks';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
@@ -73,7 +74,17 @@ export default function PickScreen() {
   const [duplicates, setDuplicates] = useState<Set<string>>(new Set());
   const [checking, setChecking] = useState(false);
   const [datesOnly, setDatesOnly] = useState(false);
-  const { viewer: preview, setViewer: setPreview, measureTile, onIndex } = usePhotoViewer();
+  const {
+    viewer: preview,
+    open: openPreview,
+    close: closePreview,
+    measureTile,
+    onIndex,
+  } = useGalleryViewer();
+  const [closingPreview, setClosingPreview] = useState(false);
+  useEffect(() => {
+    if (preview === null) setClosingPreview(false);
+  }, [preview]);
   const [preparing, setPreparing] = useState<{ done: number; total: number } | null>(null);
   const [slow, setSlow] = useState(false);
   const [storageWarning, setStorageWarning] = useState(0);
@@ -436,8 +447,9 @@ export default function PickScreen() {
               photos={photos}
               viewerPhotos={viewerPhotos}
               viewer={preview}
-              onOpen={(index, rect) => setPreview({ index, rect })}
-              onClose={() => setPreview(null)}
+              onOpen={openPreview}
+              onClose={closePreview}
+              onCloseStart={() => setClosingPreview(true)}
               onIndex={onIndex}
               measureRef={measureTile}
               onSelect={(index) => {
@@ -477,69 +489,71 @@ export default function PickScreen() {
             />
           )}
         </View>
-        <BlurBar edge="top" style={styles.top}>
-          <BackButton label={t('action.back')} onPress={() => goBack(router)} />
-          <View style={styles.headCentre}>
-            <Pressable
-              onPress={() => setMenu((was) => !was)}
-              style={[styles.title, { backgroundColor: color.surface, borderColor: color.line }]}
-            >
-              <Text role="barTitle">{label}</Text>
-              <ChevronDown size={18} color={color.paper} />
-            </Pressable>
-          </View>
-          <IconButton
-            icon={X}
-            label={t('picker.clear')}
-            tone="surface"
-            size={44}
-            on={selection.ids.size > 0 || datesOnly}
-            onPress={() => {
-              if (selection.ids.size > 0) selection.clear();
-              else if (datesOnly) setDatesOnly(false);
-              setDuplicates(new Set());
-            }}
-          />
-        </BlurBar>
-        {storageWarning > 0 ? (
-          <NoticeBanner top={insets.top + 60} text={t('picker.storageExceeded')} />
-        ) : null}
-        {menu ? (
-          <>
-            <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenu(false)} />
-            <View
-              style={[
-                styles.menu,
-                {
-                  top: insets.top + 56,
-                  left: (width - 240) / 2,
-                  backgroundColor: color.surface,
-                  borderColor: color.line,
-                },
-              ]}
-            >
-              {COLLECTIONS.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => {
-                    setCollection(item);
-                    setMenu(false);
-                    setPreview(null);
-                    selection.clear();
-                    setDatesOnly(false);
-                    setDuplicates(new Set());
-                  }}
-                  style={styles.option}
-                >
-                  <Text role="row" tone={item === collection ? 'paper' : 'muted'}>
-                    {t(LABELS[item])}
-                  </Text>
-                  {item === collection ? <Check size={18} color={color.accent} /> : null}
-                </Pressable>
-              ))}
+        <GalleryLayer hidden={preview !== null && !closingPreview}>
+          <BlurBar edge="top" style={styles.top}>
+            <BackButton label={t('action.back')} onPress={() => goBack(router)} />
+            <View style={styles.headCentre}>
+              <Pressable
+                onPress={() => setMenu((was) => !was)}
+                style={[styles.title, { backgroundColor: color.surface, borderColor: color.line }]}
+              >
+                <Text role="barTitle">{label}</Text>
+                <ChevronDown size={18} color={color.paper} />
+              </Pressable>
             </View>
-          </>
-        ) : null}
+            <IconButton
+              icon={X}
+              label={t('picker.clear')}
+              tone="surface"
+              size={44}
+              on={selection.ids.size > 0 || datesOnly}
+              onPress={() => {
+                if (selection.ids.size > 0) selection.clear();
+                else if (datesOnly) setDatesOnly(false);
+                setDuplicates(new Set());
+              }}
+            />
+          </BlurBar>
+          {storageWarning > 0 ? (
+            <NoticeBanner top={insets.top + 60} text={t('picker.storageExceeded')} />
+          ) : null}
+          {menu ? (
+            <>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenu(false)} />
+              <View
+                style={[
+                  styles.menu,
+                  {
+                    top: insets.top + 56,
+                    left: (width - 240) / 2,
+                    backgroundColor: color.surface,
+                    borderColor: color.line,
+                  },
+                ]}
+              >
+                {COLLECTIONS.map((item) => (
+                  <Pressable
+                    key={item}
+                    onPress={() => {
+                      setCollection(item);
+                      setMenu(false);
+                      closePreview();
+                      selection.clear();
+                      setDatesOnly(false);
+                      setDuplicates(new Set());
+                    }}
+                    style={styles.option}
+                  >
+                    <Text role="row" tone={item === collection ? 'paper' : 'muted'}>
+                      {t(LABELS[item])}
+                    </Text>
+                    {item === collection ? <Check size={18} color={color.accent} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+        </GalleryLayer>
       </View>
     </>
   );

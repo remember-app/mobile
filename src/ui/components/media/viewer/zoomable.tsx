@@ -21,10 +21,12 @@ type Props = {
   height: number;
   dragY: SharedValue<number>;
   lift: SharedValue<number>;
+  hudFade: SharedValue<number>;
   info: boolean;
   onInfo: (value: boolean) => void;
   onZoomed: (value: boolean) => void;
   onDismiss: () => void;
+  reveal: SharedValue<number>;
   onTap: () => void;
 };
 
@@ -37,10 +39,12 @@ export function Zoomable({
   height,
   dragY,
   lift,
+  hudFade,
   info,
   onInfo,
   onZoomed,
   onDismiss,
+  reveal,
   onTap,
 }: Props) {
   const [hdReady, setHdReady] = useState(false);
@@ -57,8 +61,10 @@ export function Zoomable({
     zoomed,
     lift,
     dragY,
+    hudFade,
     onInfo,
     onDismiss,
+    reveal,
   });
 
   const doubleTap = Gesture.Tap()

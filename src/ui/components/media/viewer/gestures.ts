@@ -9,6 +9,8 @@ export type VerticalProps = {
   zoomed: boolean;
   lift: SharedValue<number>;
   dragY: SharedValue<number>;
+  hudFade: SharedValue<number>;
+  reveal: SharedValue<number>;
   onInfo: (value: boolean) => void;
   onDismiss: () => void;
 };
@@ -19,6 +21,8 @@ export function verticalGestures({
   zoomed,
   lift,
   dragY,
+  hudFade,
+  reveal,
   onInfo,
   onDismiss,
 }: VerticalProps) {
@@ -65,13 +69,23 @@ export function verticalGestures({
     .maxPointers(1)
     .activeOffsetY([-10000, 30])
     .failOffsetX([-24, 24])
+    .onStart(() => {
+      hudFade.value = withTiming(0, { duration: 150 });
+    })
     .onUpdate((event) => {
       dragY.value = event.translationY;
+      // Экран под кадром проявляется ровно настолько, насколько кадр отошёл от края.
+      reveal.value = clamp(event.translationY / 300, 0, 1);
     })
     .onEnd((event) => {
       const projected = event.translationY + event.velocityY * 0.15;
-      if (projected > 70) scheduleOnRN(onDismiss);
-      else dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
+      if (projected > 70) {
+        scheduleOnRN(onDismiss);
+        return;
+      }
+      hudFade.value = withTiming(1, { duration: 150 });
+      reveal.value = withTiming(0, { duration: 220 });
+      dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
     });
 
   return { openInfo, closeInfo, dismiss };

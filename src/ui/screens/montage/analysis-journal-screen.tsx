@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages, watchAnalysisJobs } from '@/functionality';
@@ -7,8 +7,9 @@ import { itemSource, montageItems, montageRunning } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { AnalysisRow } from '@/ui/components/media/analysis-row';
 import { analysisStatus } from '@/ui/components/media/analysis-status';
+import { GalleryViewer, useGalleryViewer } from '@/ui/components/media/gallery-viewer';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import { viewerOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { useAnalysisJobs, useGallery, useMontagePolling, useMontages } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/chrome/bars';
 import { BackBar } from '@/ui/screens/chrome';
@@ -19,10 +20,11 @@ export default function AnalysisJournalScreen() {
   const projectId = id as ProjectId;
   const montages = useMontages(projectId);
   const gallery = useGallery(projectId);
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const montage = montages.items.find((entry) => entry.id === montageId);
   const jobs = useAnalysisJobs(projectId);
   const running = montageRunning(montage);
-  const [viewer, setViewer] = useState<number | null>(null);
+  const galleryViewer = useGalleryViewer();
   useMontagePolling(projectId, running);
 
   useEffect(() => {
@@ -58,14 +60,17 @@ export default function AnalysisJournalScreen() {
                   analysis={item.analysis ?? job?.analysis ?? null}
                   status={job ? analysisStatus(job) : t('montage.journal.noDescription')}
                   error={job?.error}
-                  onPress={() => setViewer(at)}
+                  onPress={() => galleryViewer.open(at)}
                 />
               );
             })}
       </Board>
-      {viewer === null ? null : (
-        <PhotoViewer photos={viewerPhotos} initialIndex={viewer} onClose={() => setViewer(null)} />
-      )}
+      <GalleryViewer
+        photos={viewerPhotos}
+        viewer={galleryViewer.viewer}
+        onClose={galleryViewer.close}
+        info={mediaInfo}
+      />
     </View>
   );
 }

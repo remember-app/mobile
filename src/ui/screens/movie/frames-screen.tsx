@@ -9,6 +9,7 @@ import type { ProjectId } from '@/types/id';
 import { filterItems } from '@/ui/components/gallery/gallery-filters';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
 import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-screen';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { useGallerySelection } from '@/ui/gallery-selection';
@@ -25,6 +26,7 @@ export default function MovieFramesScreen() {
   const projectId = id as ProjectId;
   const movies = useMovies(projectId);
   const gallery = useGallery(projectId);
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const labels = useLabels(projectId);
   const members = useMembers(projectId);
   const selection = useGallerySelection<string>();
@@ -75,6 +77,7 @@ export default function MovieFramesScreen() {
       onIndex={galleryScreen.onIndex}
       measureRef={galleryScreen.measureTile}
       selection={selection}
+      info={mediaInfo}
       hud={{
         canSelect: true,
         onSelectingChange: (next) => {
@@ -87,7 +90,7 @@ export default function MovieFramesScreen() {
         bottom: insets.bottom + space.s3,
       }}
       padding={{ top: insets.top + 60, bottom: insets.bottom + space.s4 }}
-      empty={<Board bar={bar} />}
+      empty={<Board />}
       header={
         <BlurBar edge="top" style={styles.top}>
           {bar}

@@ -18,6 +18,7 @@ import { goBack } from '@/ui/back';
 import { filterItems } from '@/ui/components/gallery/gallery-filters';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
 import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-screen';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { useGallerySelection } from '@/ui/gallery-selection';
@@ -38,6 +39,7 @@ export default function AnalyzeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const gallery = useGallery(projectId);
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const labels = useLabels(projectId);
   const members = useMembers(projectId);
   const selection = useGallerySelection<string>();
@@ -161,6 +163,7 @@ export default function AnalyzeScreen() {
       measureRef={galleryScreen.measureTile}
       onSelect={toggle}
       selection={selection}
+      info={mediaInfo}
       padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
       loading={
         loading ? (

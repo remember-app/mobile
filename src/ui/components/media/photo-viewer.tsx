@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
+  type SharedValue,
   scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
@@ -47,6 +48,9 @@ type Props = {
   initialIndex: number;
   origin?: Rect;
   onClose: () => void;
+  onCloseStart?: () => void;
+  /** Проявление экрана под кадром; по умолчанию кадр живёт без него. */
+  reveal?: SharedValue<number>;
   onIndex?: (index: number) => void;
   onLoadMore?: () => void;
   renderInfo?: (index: number) => ReactNode;
@@ -66,6 +70,8 @@ export function PhotoViewer({
   initialIndex,
   origin,
   onClose,
+  onCloseStart,
+  reveal: outerReveal,
   onIndex,
   onLoadMore,
   renderInfo,
@@ -110,7 +116,12 @@ export function PhotoViewer({
   const [chrome, setChrome] = useState(true);
   const [muted, setMuted] = useState(false);
   const [speedMode, setSpeedMode] = useState(false);
+  const ownReveal = useSharedValue(1);
+  const reveal = outerReveal ?? ownReveal;
   const progress = useSharedValue(grows ? 0 : 1);
+  // Верх просмотрщика живёт вместе с лентой: появляется на последней трети раскрытия,
+  // гаснет сразу по началу закрытия — а не по мере движения пальца.
+  const barFade = useSharedValue(1);
   const flight = useSharedValue(0);
   const fromY = useSharedValue(0);
   const fromSX = useSharedValue(1);
@@ -123,6 +134,13 @@ export function PhotoViewer({
   useEffect(() => {
     setSpeedMode(false);
   }, [currentPhoto?.id]);
+
+  useEffect(() => {
+    reveal.value = withTiming(0, { duration: 220 });
+    return () => {
+      reveal.value = 1;
+    };
+  }, [reveal]);
 
   const endScroll = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearEndScroll = useCallback(() => {
@@ -247,6 +265,9 @@ export function PhotoViewer({
   });
 
   const leave = useCallback(() => {
+    barFade.value = withTiming(0, { duration: 150 });
+    reveal.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
+    onCloseStart?.();
     if (!origin || phase === 'leaving') {
       onClose();
       return;
@@ -261,7 +282,7 @@ export function PhotoViewer({
     flight.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }, (done) => {
       if (done) scheduleOnRN(onClose);
     });
-  }, [dragY, flight, fromSX, fromSY, fromY, onClose, origin, phase]);
+  }, [barFade, dragY, flight, fromSX, fromSY, fromY, onClose, onCloseStart, origin, phase, reveal]);
 
   const backdrop = useAnimatedStyle(() => {
     const drag = 1 - Math.min(Math.abs(dragY.value) / 300, 1);
@@ -284,11 +305,14 @@ export function PhotoViewer({
     top: photoBottom + (height * 0.4 - photoBottom) * lift.value - 44,
     opacity: lift.value,
   }));
+  const barStyle = useAnimatedStyle(() => {
+    const appear = Math.max(0, Math.min(1, (progress.value - 0.6) / 0.4));
+    return { opacity: appear * barFade.value };
+  });
   const stripStyle = useAnimatedStyle(() => {
     const appear = Math.max(0, Math.min(1, (progress.value - 0.6) / 0.4));
-    const hide = 1 - Math.min(Math.abs(dragY.value) / 72, 1);
     const gone = Math.min(1, Math.max(0, (lift.value - 0.2) / 0.2));
-    return { opacity: appear * hide * (1 - gone) };
+    return { opacity: appear * barFade.value * (1 - gone) };
   });
   const growth = useAnimatedStyle(() => {
     const t = progress.value;
@@ -395,9 +419,12 @@ export function PhotoViewer({
                     layout={layout}
                     dragY={dragY}
                     lift={lift}
+                    hudFade={barFade}
+                    hudStyle={barStyle}
                     info={info}
                     onInfo={setInfo}
                     onDismiss={leave}
+                    reveal={reveal}
                     onTap={() => setChrome((shown) => !shown)}
                     onZoomed={setZoomed}
                     active={at === index}
@@ -417,10 +444,12 @@ export function PhotoViewer({
                     height={height}
                     dragY={dragY}
                     lift={lift}
+                    hudFade={barFade}
                     info={info}
                     onInfo={setInfo}
                     onZoomed={setZoomed}
                     onDismiss={leave}
+                    reveal={reveal}
                     onTap={() => setChrome((shown) => !shown)}
                   />
                 )
@@ -534,62 +563,67 @@ export function PhotoViewer({
           </View>
         </BlurBar>
       ) : null}
-      {chrome && !zoomed && !info && phase === 'open' ? (
-        <BlurBar
-          edge="top"
-          shade={false}
-          style={[styles.hud, { top: layout.hudTop, paddingHorizontal: layout.hudSide }]}
+      {chrome && !zoomed && !info ? (
+        <Animated.View
+          pointerEvents={phase === 'open' ? 'box-none' : 'none'}
+          style={[StyleSheet.absoluteFill, barStyle]}
         >
-          <BackButton label={t('action.back')} size={44} onPress={leave} />
-          <View
-            style={[styles.hudWords, { maxWidth: width - layout.hudSide * 2 - 88 - HUD_GAP * 2 }]}
+          <BlurBar
+            edge="top"
+            shade={false}
+            style={[styles.hud, { top: layout.hudTop, paddingHorizontal: layout.hudSide }]}
           >
-            {currentPhoto?.capturedAt ? (
-              <View
-                style={[
-                  styles.hudBox,
-                  {
-                    backgroundColor: theme.color.surface,
-                    borderColor: theme.color.line,
-                  },
-                ]}
-              >
-                <Text role="row" numberOfLines={1}>
-                  {fullDay(currentPhoto.capturedAt)}
-                </Text>
-                <Text role="meta" numberOfLines={1}>
-                  {time(currentPhoto.capturedAt)}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          {onDelete && currentPhoto ? (
-            <IconButton
-              icon={Trash2}
-              label={t('action.delete')}
-              tone="surface"
-              size={44}
-              onPress={() =>
-                confirmAction({
-                  confirm: t('action.delete'),
-                  destructive: true,
-                  onConfirm: () => onDelete(currentPhoto),
-                })
-              }
-            />
-          ) : onSelect ? (
-            <IconButton
-              icon={selected ? CircleCheck : Circle}
-              label={t('project.select')}
-              tone="surface"
-              size={44}
-              on={selected}
-              onPress={onSelect}
-            />
-          ) : (
-            <View style={styles.hudSide} />
-          )}
-        </BlurBar>
+            <BackButton label={t('action.back')} size={44} onPress={leave} />
+            <View
+              style={[styles.hudWords, { maxWidth: width - layout.hudSide * 2 - 88 - HUD_GAP * 2 }]}
+            >
+              {currentPhoto?.capturedAt ? (
+                <View
+                  style={[
+                    styles.hudBox,
+                    {
+                      backgroundColor: theme.color.surface,
+                      borderColor: theme.color.line,
+                    },
+                  ]}
+                >
+                  <Text role="row" numberOfLines={1}>
+                    {fullDay(currentPhoto.capturedAt)}
+                  </Text>
+                  <Text role="meta" numberOfLines={1}>
+                    {time(currentPhoto.capturedAt)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            {onDelete && currentPhoto ? (
+              <IconButton
+                icon={Trash2}
+                label={t('action.delete')}
+                tone="surface"
+                size={44}
+                onPress={() =>
+                  confirmAction({
+                    confirm: t('action.delete'),
+                    destructive: true,
+                    onConfirm: () => onDelete(currentPhoto),
+                  })
+                }
+              />
+            ) : onSelect ? (
+              <IconButton
+                icon={selected ? CircleCheck : Circle}
+                label={t('project.select')}
+                tone="surface"
+                size={44}
+                on={selected}
+                onPress={onSelect}
+              />
+            ) : (
+              <View style={styles.hudSide} />
+            )}
+          </BlurBar>
+        </Animated.View>
       ) : null}
     </View>
   );

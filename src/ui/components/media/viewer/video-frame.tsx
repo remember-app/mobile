@@ -34,9 +34,12 @@ export function VideoFrame({
   layout,
   dragY,
   lift,
+  hudFade,
+  hudStyle,
   info,
   onInfo,
   onDismiss,
+  reveal,
   onTap,
   onZoomed,
   active,
@@ -52,9 +55,12 @@ export function VideoFrame({
   layout: ViewerLayout;
   dragY: SharedValue<number>;
   lift: SharedValue<number>;
+  hudFade: SharedValue<number>;
+  hudStyle: AnimatedStyle<ViewStyle>;
   info: boolean;
   onInfo: (value: boolean) => void;
   onDismiss: () => void;
+  reveal: SharedValue<number>;
   onTap: () => void;
   onZoomed: (value: boolean) => void;
   active: boolean;
@@ -103,8 +109,10 @@ export function VideoFrame({
     zoomed,
     lift,
     dragY,
+    hudFade,
     onInfo,
     onDismiss,
+    reveal,
   });
 
   const speedStart = useSharedValue({ x: 0, y: 0 });
@@ -177,6 +185,7 @@ export function VideoFrame({
             layout={layout}
             onTap={onTap}
             visible={visible}
+            hudStyle={hudStyle}
             muted={muted}
             onMutedChange={onMutedChange}
             speed={speed}
@@ -214,6 +223,7 @@ function Video({
   layout,
   onTap,
   visible,
+  hudStyle,
   muted,
   onMutedChange,
   speed,
@@ -226,6 +236,7 @@ function Video({
   layout: ViewerLayout;
   onTap: () => void;
   visible: boolean;
+  hudStyle: AnimatedStyle<ViewStyle>;
   muted: boolean;
   onMutedChange: (value: boolean) => void;
   speed: number;
@@ -287,10 +298,11 @@ function Video({
         </View>
       </View>
       {visible ? (
-        <View
+        <Animated.View
           style={[
             styles.controls,
             { bottom: barBottom, width: barWidth, left: (width - barWidth) / 2 },
+            hudStyle,
           ]}
         >
           <IconButton
@@ -314,7 +326,7 @@ function Video({
             glyph={{ size: 18, filled: true }}
             onPress={toggleMute}
           />
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );

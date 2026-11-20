@@ -38,11 +38,10 @@ import {
   isFiltered,
   NO_FILTERS,
 } from '@/ui/components/gallery/gallery-filters';
-import { MediaInfo } from '@/ui/components/media/info/media-info';
+import { GalleryViewer, useGalleryViewer } from '@/ui/components/media/gallery-viewer';
+import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
-import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { usePhotoViewer } from '@/ui/components/media/use-photo-viewer';
 import { MetaPage } from '@/ui/components/montage/order/meta';
 import { MusicPage } from '@/ui/components/montage/order/music';
 import { ShotsPage } from '@/ui/components/montage/order/shots';
@@ -101,7 +100,8 @@ export default function NewMontageScreen() {
   const [error, setError] = useState<string | null>(null);
   const [payer, setPayer] = useState<'project' | 'user' | null>(null);
   const [director, setDirector] = useState(false);
-  const { viewer, setViewer, measureTile, onIndex } = usePhotoViewer();
+  const galleryViewer = useGalleryViewer();
+  const mediaInfo = useMediaInfo(projectId, gallery.items);
   const [description, setDescription] = useState('');
   const [filters, setFilters] = useState<GalleryFiltersValue>(NO_FILTERS);
   const [filtering, setFiltering] = useState(false);
@@ -223,6 +223,8 @@ export default function NewMontageScreen() {
   }, [filters, gallery.items]);
 
   const shotIds = useMemo(() => shots.map((item) => item.id), [shots]);
+  const shotId =
+    galleryViewer.viewer === null ? null : (shotIds[galleryViewer.viewer.index] ?? null);
 
   const photos = useMemo<Photo[]>(
     () =>
@@ -427,9 +429,9 @@ export default function NewMontageScreen() {
               top={headHeight}
               bottom={insets.bottom + 72}
               photos={photos}
-              blankIndex={viewer?.index ?? null}
-              measureRef={measureTile}
-              onOpen={(index, rect) => setViewer({ index, rect })}
+              blankIndex={galleryViewer.viewer?.index ?? null}
+              measureRef={galleryViewer.measureTile}
+              onOpen={galleryViewer.open}
               onSelect={(index) => {
                 const itemId = shotIds[index];
                 if (itemId) toggleShot(itemId);
@@ -541,25 +543,16 @@ export default function NewMontageScreen() {
           />
         </View>
       ) : null}
-      {viewer === null ? null : (
-        <PhotoViewer
-          photos={viewerPhotos}
-          initialIndex={viewer.index}
-          origin={viewer.rect}
-          onClose={() => setViewer(null)}
-          onLoadMore={() => void loadMoreGallery(projectId)}
-          onIndex={onIndex}
-          selected={included.has(shotIds[viewer.index] ?? '')}
-          onSelect={() => {
-            const itemId = shotIds[viewer.index];
-            if (itemId) toggleShot(itemId);
-          }}
-          renderInfo={(index) => {
-            const item = shots[index];
-            return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
-          }}
-        />
-      )}
+      <GalleryViewer
+        photos={viewerPhotos}
+        viewer={galleryViewer.viewer}
+        onClose={galleryViewer.close}
+        onLoadMore={() => void loadMoreGallery(projectId)}
+        onIndex={galleryViewer.onIndex}
+        selected={shotId === null ? undefined : included.has(shotId)}
+        onSelect={shotId === null ? undefined : () => toggleShot(shotId)}
+        info={mediaInfo}
+      />
     </View>
   );
 }

@@ -4,11 +4,9 @@ import { useSharedValue, withTiming } from 'react-native-reanimated';
 const SCROLL_THRESHOLD = 16;
 
 export function useGalleryChrome({
-  viewerOpen,
   selectionDefault = false,
   canSelect = true,
 }: {
-  viewerOpen: boolean;
   selectionDefault?: boolean;
   canSelect?: boolean;
 }) {
@@ -18,7 +16,9 @@ export function useGalleryChrome({
   const [selecting, setSelecting] = useState(selectionDefault);
   const [filtering, setFiltering] = useState(false);
 
-  const actionsOpen = !viewerOpen && (scrolled || filtering);
+  // Скрытие в просмотрщике не должно сбрасывать состояние: худ возвращается уже тем,
+  // каким он должен быть сейчас, без мелькания основной кнопки.
+  const actionsOpen = scrolled || filtering;
 
   useEffect(() => {
     chrome.value = withTiming(actionsOpen ? 1 : 0, { duration: 200 });
@@ -51,6 +51,5 @@ export function useGalleryChrome({
     closeFilter,
     onScroll,
     actionsOpen,
-    hidden: viewerOpen,
   };
 }

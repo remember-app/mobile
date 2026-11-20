@@ -1,12 +1,13 @@
-import { type MutableRefObject, type ReactNode, useEffect, useRef } from 'react';
+import { type MutableRefObject, type ReactNode, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type { SharedValue } from 'react-native-reanimated';
+import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 
 import type { Label, Member } from '@/models';
 import type { GallerySelection } from '@/ui/gallery-selection';
 import type { GalleryFilterFields, GalleryFiltersValue } from '../gallery/gallery-filters';
 import type { GalleryPrimary } from '../gallery/gallery-hud';
 import { GalleryHud } from '../gallery/gallery-hud';
+import { GalleryLayer } from '../gallery/gallery-layer';
 import { useGalleryChrome } from '../gallery/use-gallery-chrome';
 import { GalleryViewer, type GalleryViewerState, useGalleryViewer } from './gallery-viewer';
 import type { MeasureTile, Photo, Rect } from './photo-grid';
@@ -54,6 +55,7 @@ type Props = {
   viewer: GalleryViewerState | null;
   onOpen: (index: number, rect?: Rect) => void;
   onClose: () => void;
+  onCloseStart?: () => void;
   onIndex?: (index: number) => void;
   measureRef?: MutableRefObject<MeasureTile | null>;
   onLoadMore?: () => void;
@@ -62,7 +64,7 @@ type Props = {
   onRequire?: (index: number) => void;
   padding: { top: number; bottom: number };
   selection?: GallerySelection<string>;
-  info?: (index: number) => ReactNode;
+  info?: (id: string) => ReactNode;
   author?: string;
   authorAvatarUrl?: string | null;
   onDelete?: (photo: ViewerPhoto) => void;
@@ -80,6 +82,7 @@ export function GalleryScreen({
   viewer,
   onOpen,
   onClose,
+  onCloseStart,
   onIndex,
   measureRef,
   onLoadMore,
@@ -100,7 +103,6 @@ export function GalleryScreen({
   hud,
 }: Props) {
   const chrome = useGalleryChrome({
-    viewerOpen: viewer !== null,
     selectionDefault: hud?.selectionDefault,
     canSelect: Boolean(hud?.canSelect),
   });
@@ -112,51 +114,57 @@ export function GalleryScreen({
   }, [chrome.selecting]);
   const shownPhotos =
     hud && !selecting ? photos.map((photo) => ({ ...photo, selected: undefined })) : photos;
-
-  if (loading) return <>{loading}</>;
-  if (photos.length === 0) return <>{empty ?? null}</>;
-  return (
-    <View style={styles.root}>
-      <PhotoGrid
-        photos={shownPhotos}
-        onOpen={onOpen}
-        onSelect={selecting ? onSelect : undefined}
-        onRequire={onRequire}
-        padding={padding}
-        blankIndex={viewer?.index ?? null}
-        measureRef={measureRef}
-        emptyMark={emptyMark}
-        onLoadOlder={onLoadMore}
-        onScroll={
-          hud
-            ? (offset) => {
-                chrome.onScroll(offset);
-                onScroll?.(offset);
-              }
-            : onScroll
-        }
-      />
+  const viewingIndex = viewer === null ? -1 : viewer.index;
+  const viewing = viewingIndex < 0 ? undefined : viewerPhotos[viewingIndex];
+  // Своё место экран занимает уже во время закрытия просмотрщика: он проявляется под
+  // уезжающим кадром, а не возникает после того, как тот исчез.
+  const [closing, setClosing] = useState(false);
+  const reveal = useSharedValue(1);
+  useEffect(() => {
+    if (viewer === null) setClosing(false);
+  }, [viewer]);
+  const chromeLayer = (
+    <GalleryLayer hidden={viewer !== null && !closing} reveal={reveal}>
       {header}
       {footer}
-      <GalleryViewer
-        photos={viewerPhotos}
-        viewer={viewer}
-        onClose={onClose}
-        onIndex={onIndex}
-        onLoadMore={onLoadMore}
-        selection={selecting ? selection : undefined}
-        onSelect={selecting ? onSelect : undefined}
-        info={info}
-        author={author}
-        authorAvatarUrl={authorAvatarUrl}
-        onDelete={onDelete}
-      />
-      {hud ? (
+    </GalleryLayer>
+  );
+
+  return (
+    <View style={styles.root}>
+      {loading ? (
+        loading
+      ) : photos.length === 0 ? (
+        (empty ?? null)
+      ) : (
+        <PhotoGrid
+          photos={shownPhotos}
+          onOpen={onOpen}
+          onSelect={selecting ? onSelect : undefined}
+          onRequire={onRequire}
+          padding={padding}
+          blankIndex={viewer?.index ?? null}
+          measureRef={measureRef}
+          emptyMark={emptyMark}
+          onLoadOlder={onLoadMore}
+          onScroll={
+            hud
+              ? (offset) => {
+                  chrome.onScroll(offset);
+                  onScroll?.(offset);
+                }
+              : onScroll
+          }
+        />
+      )}
+      {chromeLayer}
+      {hud && !loading && photos.length > 0 ? (
         <GalleryHud
           chrome={chrome.chrome}
           filterAnim={chrome.filterAnim}
           actionsOpen={chrome.actionsOpen}
-          hidden={chrome.hidden}
+          hidden={viewer !== null && !closing}
+          reveal={reveal}
           filtering={chrome.filtering}
           onFilterToggle={() => chrome.setFiltering((was) => !was)}
           filters={hud.filters}
@@ -173,6 +181,30 @@ export function GalleryScreen({
           bottom={hud.bottom}
         />
       ) : null}
+      <GalleryViewer
+        photos={viewerPhotos}
+        viewer={viewer}
+        onClose={onClose}
+        onCloseStart={() => {
+          setClosing(true);
+          onCloseStart?.();
+        }}
+        reveal={reveal}
+        onIndex={onIndex}
+        onLoadMore={onLoadMore}
+        selected={selecting && viewing ? selection?.has(viewing.id) : undefined}
+        onSelect={
+          selecting && viewing
+            ? onSelect
+              ? () => onSelect(viewingIndex)
+              : () => selection?.toggle(viewing.id)
+            : undefined
+        }
+        info={info}
+        author={author}
+        authorAvatarUrl={authorAvatarUrl}
+        onDelete={onDelete}
+      />
     </View>
   );
 }
