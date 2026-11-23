@@ -258,8 +258,6 @@ function Video({
     setPlaying(isPlaying);
   });
 
-  useEventListener(player, 'timeUpdate', onFirstFrame);
-
   useEffect(() => {
     player.muted = muted;
   }, [muted, player]);
@@ -271,7 +269,7 @@ function Video({
   useEffect(() => {
     player.play();
     return () => player.pause();
-  }, [player, uri]);
+  }, [player]);
 
   const toggle = () => {
     if (player.playing) player.pause();
