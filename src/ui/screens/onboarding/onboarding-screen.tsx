@@ -3,12 +3,21 @@ import { StatusBar } from 'expo-status-bar';
 import { Apple, Mail } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Keyboard,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollViewInstance,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, {
   Extrapolation,
   FadeIn,
   FadeOut,
   interpolate,
+  useAnimatedKeyboard,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -18,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadSystemMedia } from '@/functionality';
 import { useSystemMedia } from '@/ui/hooks';
 import { Button } from '@/ui/kit/controls/button';
+import { Field, type TextInputRef } from '@/ui/kit/controls/field';
 import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
@@ -29,8 +39,12 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
+  const [email, setEmail] = useState('');
+  const [emailMode, setEmailMode] = useState(false);
   const step = useSharedValue(0);
   const scroller = useRef<ScrollViewInstance>(null);
+  const input = useRef<TextInputRef>(null);
+  const keyboard = useAnimatedKeyboard();
   const media = useSystemMedia();
   const slides = media.filter((item) => item.name.startsWith('onboarding-'));
   const slide = slides.length > 0 ? slides[index % slides.length] : undefined;
@@ -39,12 +53,8 @@ export default function OnboardingScreen() {
   const cardLeft = space.s4;
   const cardWidth = width - cardLeft * 2;
   const actionHeight = 160 + insets.bottom;
-  const keyboardHeight = Math.min(height * 0.3, 260);
+  const keyboardRoom = Math.min(height * 0.3, 260);
   const cardStep1Height = Math.max(180, height - cardTop - actionHeight - space.s4);
-  const cardStep2Height = Math.max(
-    160,
-    height - cardTop - actionHeight - keyboardHeight - space.s5,
-  );
 
   const go = useCallback(
     (next: number) => {
@@ -58,6 +68,23 @@ export default function OnboardingScreen() {
     step.value = Math.max(0, Math.min(2, event.contentOffset.y / height));
   });
 
+  const enterEmail = useCallback(() => {
+    setEmailMode(true);
+    go(2);
+  }, [go]);
+
+  const onScrollSettled = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setEmailMode(Math.round(event.nativeEvent.contentOffset.y / height) >= 2);
+    },
+    [height],
+  );
+
+  useEffect(() => {
+    if (emailMode) input.current?.focus();
+    else Keyboard.dismiss();
+  }, [emailMode]);
+
   useEffect(() => {
     void loadSystemMedia();
   }, []);
@@ -70,23 +97,30 @@ export default function OnboardingScreen() {
     return () => clearInterval(rotation);
   }, [slides.length]);
 
-  const photoStyle = useAnimatedStyle(() => ({
-    top: interpolate(step.value, [0, 1, 2], [0, cardTop, cardTop], Extrapolation.CLAMP),
-    left: interpolate(step.value, [0, 1, 2], [0, cardLeft, cardLeft], Extrapolation.CLAMP),
-    width: interpolate(step.value, [0, 1, 2], [width, cardWidth, cardWidth], Extrapolation.CLAMP),
-    height: interpolate(
-      step.value,
-      [0, 1, 2],
-      [height, cardStep1Height, cardStep2Height],
-      Extrapolation.CLAMP,
-    ),
-    borderRadius: interpolate(
-      step.value,
-      [0, 1, 2],
-      [0, radius.section, radius.section],
-      Extrapolation.CLAMP,
-    ),
-  }));
+  const photoStyle = useAnimatedStyle(() => {
+    const keyboardHeight = Math.max(keyboardRoom, keyboard.height.value);
+    const cardStep2Height = Math.max(
+      160,
+      height - cardTop - actionHeight - keyboardHeight - space.s5,
+    );
+    return {
+      top: interpolate(step.value, [0, 1, 2], [0, cardTop, cardTop], Extrapolation.CLAMP),
+      left: interpolate(step.value, [0, 1, 2], [0, cardLeft, cardLeft], Extrapolation.CLAMP),
+      width: interpolate(step.value, [0, 1, 2], [width, cardWidth, cardWidth], Extrapolation.CLAMP),
+      height: interpolate(
+        step.value,
+        [0, 1, 2],
+        [height, cardStep1Height, cardStep2Height],
+        Extrapolation.CLAMP,
+      ),
+      borderRadius: interpolate(
+        step.value,
+        [0, 1, 2],
+        [0, radius.section, radius.section],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
 
   const brandStyle = useAnimatedStyle(() => ({
     top: interpolate(
@@ -116,13 +150,23 @@ export default function OnboardingScreen() {
     opacity: interpolate(step.value, [0, 1], [0, 1], Extrapolation.CLAMP),
     transform: [
       {
-        translateY: interpolate(step.value, [1, 2], [0, -keyboardHeight], Extrapolation.CLAMP),
+        translateY: interpolate(
+          step.value,
+          [1, 2],
+          [0, -Math.max(keyboardRoom, keyboard.height.value)],
+          Extrapolation.CLAMP,
+        ),
       },
     ],
   }));
 
   const keyboardStyle = useAnimatedStyle(() => ({
-    height: interpolate(step.value, [1, 2], [0, keyboardHeight], Extrapolation.CLAMP),
+    height: interpolate(
+      step.value,
+      [1, 2],
+      [0, Math.max(keyboardRoom, keyboard.height.value)],
+      Extrapolation.CLAMP,
+    ),
     opacity: interpolate(step.value, [1, 2], [0, 1], Extrapolation.CLAMP),
   }));
 
@@ -155,22 +199,40 @@ export default function OnboardingScreen() {
 
       <Animated.View style={[styles.action, actionStyle]}>
         <View style={[styles.actionInner, { paddingBottom: insets.bottom }]}>
-          <View style={styles.providers}>
-            <Button label="Google" variant="secondary" wide={false} style={styles.provider} />
-            <Button
-              label="Apple"
-              variant="secondary"
-              icon={Apple}
-              wide={false}
-              style={styles.provider}
+          {emailMode ? (
+            <Field
+              label={t('onboarding.email.label')}
+              placeholder={t('onboarding.email.prompt')}
+              value={email}
+              onChangeText={setEmail}
+              inputRef={input}
+              inputMode="email"
+              keyboardType="email-address"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
             />
-          </View>
-          <Button
-            label={t('onboarding.welcome.continue')}
-            variant="primary"
-            icon={Mail}
-            onPress={() => go(2)}
-          />
+          ) : (
+            <>
+              <View style={styles.providers}>
+                <Button label="Google" variant="secondary" wide={false} style={styles.provider} />
+                <Button
+                  label="Apple"
+                  variant="secondary"
+                  icon={Apple}
+                  wide={false}
+                  style={styles.provider}
+                />
+              </View>
+              <Button
+                label={t('onboarding.welcome.continue')}
+                variant="primary"
+                icon={Mail}
+                onPress={enterEmail}
+              />
+            </>
+          )}
         </View>
       </Animated.View>
 
@@ -189,6 +251,8 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
+        onScrollEndDrag={onScrollSettled}
+        onMomentumScrollEnd={onScrollSettled}
       />
     </View>
   );
