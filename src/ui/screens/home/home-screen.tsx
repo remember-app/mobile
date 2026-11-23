@@ -3,8 +3,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { loadMoreProjects, loadProjects, projectCoverFrames } from '@/functionality';
 import type { ProjectCard as ProjectCardModel } from '@/models';
@@ -14,13 +23,12 @@ import { ProjectCard } from '@/ui/components/project/project-card';
 import { useProjects } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/controls/action-bar';
 import { Button, IconButton } from '@/ui/kit/controls/button';
-import { space, useTheme } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { color } = useTheme();
   const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
   const [refreshing, setRefreshing] = useState(false);
   const [covers, setCovers] = useState<Record<string, string[]>>({});
@@ -41,6 +49,18 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const atBottom = useSharedValue(true);
+  const pull = Gesture.Pan()
+    .enabled(!refreshing)
+    .onEnd((event) => {
+      if (event.translationY < -60 && atBottom.value) scheduleOnRN(refresh);
+    });
+
+  const trackScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    atBottom.value = contentOffset.y + layoutMeasurement.height >= contentSize.height - 8;
   };
 
   useEffect(() => {
@@ -81,39 +101,39 @@ export default function HomeScreen() {
             />
           </View>
         ) : (
-          <FlashList
-            ref={list}
-            data={cards}
-            keyExtractor={(entry) => entry.id}
-            onContentSizeChange={(_width, height) => {
-              if (anchored.current || height <= 0) return;
-              anchored.current = true;
-              list.current?.scrollToEnd({ animated: false });
-            }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={color.muted} />
-            }
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: 'flex-end',
-              paddingTop: insets.top,
-              paddingBottom: insets.bottom + 92,
-              paddingHorizontal: space.s4,
-            }}
-            ItemSeparatorComponent={() => <View style={styles.gap} />}
-            onEndReached={() => void loadMoreProjects()}
-            onEndReachedThreshold={0.6}
-            renderItem={({ item }) => (
-              <ProjectCard
-                project={item}
-                covers={covers[item.id]}
-                onPress={() =>
-                  router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
-                }
-              />
-            )}
-          />
+          <GestureDetector gesture={pull}>
+            <FlashList
+              ref={list}
+              data={cards}
+              keyExtractor={(entry) => entry.id}
+              onContentSizeChange={(_width, height) => {
+                if (anchored.current || height <= 0) return;
+                anchored.current = true;
+                list.current?.scrollToEnd({ animated: false });
+              }}
+              onScroll={trackScroll}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'flex-end',
+                paddingTop: insets.top,
+                paddingBottom: insets.bottom + 92,
+                paddingHorizontal: space.s4,
+              }}
+              ItemSeparatorComponent={() => <View style={styles.gap} />}
+              onEndReached={() => void loadMoreProjects()}
+              onEndReachedThreshold={0.6}
+              renderItem={({ item }) => (
+                <ProjectCard
+                  project={item}
+                  covers={covers[item.id]}
+                  onPress={() =>
+                    router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
+                  }
+                />
+              )}
+            />
+          </GestureDetector>
         )}
         <IconButton
           icon={User}
