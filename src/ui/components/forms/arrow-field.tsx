@@ -20,6 +20,7 @@ type Props = {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoCorrect?: boolean;
   autoFocus?: boolean;
+  onFocus?: () => void;
   inputRef?: Ref<TextInputRef>;
 };
 
@@ -37,6 +38,7 @@ export function ArrowField({
   autoCapitalize,
   autoCorrect,
   autoFocus,
+  onFocus,
   inputRef,
 }: Props) {
   const { t } = useTranslation();
@@ -58,7 +60,10 @@ export function ArrowField({
         autoCapitalize={autoCapitalize}
         autoCorrect={autoCorrect}
         autoFocus={autoFocus}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          onFocus?.();
+        }}
         onBlur={() => setFocused(false)}
         returnKeyType="done"
         onSubmitEditing={() => {

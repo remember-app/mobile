@@ -6,6 +6,13 @@ import { query, request } from './client';
 import { toLoginResult, toPage, toSession } from './map';
 import type { LoginResultWire, LoginStartWire, OffsetPageWire, SessionWire } from './wire';
 
+export function checkEmailRegistration(email: string): Promise<{ registered: boolean }> {
+  return request<{ registered: boolean }>('/v1/auth/email/check', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
 export function startEmailLogin(email: string): Promise<{ ok: true; registered: boolean }> {
   return request<LoginStartWire>('/v1/auth/email/start', { method: 'POST', body: { email } });
 }

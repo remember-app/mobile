@@ -21,6 +21,7 @@ type Props = {
   length?: number;
   alnum?: boolean;
   autoFocus?: boolean;
+  onFocus?: () => void;
   inputRef?: Ref<TextInputRef>;
 };
 

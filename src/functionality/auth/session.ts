@@ -2,6 +2,7 @@ import {
   setLanguage as apiSetLanguage,
   setName as apiSetName,
   setUsername as apiSetUsername,
+  checkEmailRegistration,
   getMe,
   isApiError,
   logout,
@@ -127,6 +128,10 @@ export async function restoreSession(): Promise<void> {
 
 export async function signIn(token: string): Promise<void> {
   await keep(token, await getMe(token));
+}
+
+export async function checkEmail(email: string): Promise<boolean> {
+  return (await checkEmailRegistration(email)).registered;
 }
 
 export async function requestCode(email: string): Promise<{ registered: boolean }> {

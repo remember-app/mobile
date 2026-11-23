@@ -68,6 +68,7 @@ export const ru: typeof en = {
       label: 'Код',
       resend: 'Отправить ещё раз',
       paste: 'Вставить',
+      error: 'Неверный или просроченный код. Попробуйте ещё раз.',
     },
     username: {
       label: 'Ник',

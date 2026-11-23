@@ -21,6 +21,7 @@ export {
   watchAnalysisJobs,
 } from './analysis/jobs';
 export {
+  checkEmail,
   confirmCode,
   currentToken,
   onBeforeSignOut,

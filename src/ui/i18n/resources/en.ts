@@ -66,6 +66,7 @@ export const en = {
       label: 'Code',
       resend: 'Send again',
       paste: 'Paste',
+      error: 'Invalid or expired code. Try again.',
     },
     username: {
       label: 'Username',

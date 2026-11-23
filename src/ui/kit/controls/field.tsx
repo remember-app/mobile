@@ -81,6 +81,7 @@ export function CodeField({
   state,
   autoFocus,
   alnum,
+  onFocus,
   inputRef,
 }: {
   label: string;
@@ -90,6 +91,7 @@ export function CodeField({
   state?: FieldState;
   autoFocus?: boolean;
   alnum?: boolean;
+  onFocus?: () => void;
   inputRef?: Ref<TextInputRef>;
 }) {
   const [focused, setFocused] = useState(false);
@@ -138,7 +140,10 @@ export function CodeField({
             : { textContentType: 'oneTimeCode' as const, autoComplete: 'one-time-code' as const })}
           maxFontSizeMultiplier={TYPE_MOST}
           autoFocus={autoFocus}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
           onBlur={() => setFocused(false)}
           caretHidden
           selectionColor="transparent"
