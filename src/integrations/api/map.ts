@@ -275,7 +275,6 @@ export function toSystemMedia(wire: SystemMediaItemWire): SystemMediaItem {
     url: wire.url,
     width: wire.width,
     height: wire.height,
-    captions: wire.captions,
   };
 }
 

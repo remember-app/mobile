@@ -9,9 +9,7 @@ import Animated, {
   Easing,
   Extrapolation,
   FadeIn,
-  FadeInLeft,
   FadeOut,
-  FadeOutRight,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -24,21 +22,20 @@ import { loadSystemMedia } from '@/functionality';
 import { useSystemMedia } from '@/ui/hooks';
 import { Button } from '@/ui/kit/controls/button';
 import { Text } from '@/ui/kit/primitives/text';
-import { radius, space } from '@/ui/theme';
+import { radius, space, useTheme } from '@/ui/theme';
 
 const SLIDE_MS = 6000;
 
 export default function OnboardingScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { color } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const step = useSharedValue(0);
-  const language = i18n.language === 'en' ? 'en' : 'ru';
   const media = useSystemMedia();
   const slides = media.filter((item) => item.name.startsWith('onboarding-'));
   const slide = slides.length > 0 ? slides[index % slides.length] : undefined;
-  const caption = slide?.captions ? slide.captions[language] : null;
 
   const cardTop = insets.top + space.s4;
   const cardLeft = space.s5;
@@ -59,12 +56,13 @@ export default function OnboardingScreen() {
 
   const gesture = useRef(
     Gesture.Pan()
-      .activeOffsetX([50, 50])
-      .activeOffsetY([60, 60])
+      .maxPointers(1)
       .onEnd((event) => {
         const current = Math.round(step.value);
-        if (event.translationY > 80) scheduleOnRN(go, Math.max(0, current - 1));
-        else if (current === 0 && event.translationX > 50) scheduleOnRN(go, 1);
+        const down = event.translationY > 80 && event.translationY > Math.abs(event.translationX);
+        const right = event.translationX > 50 && event.translationX > Math.abs(event.translationY);
+        if (down) scheduleOnRN(go, Math.max(0, current - 1));
+        else if (current === 0 && right) scheduleOnRN(go, 1);
       }),
   ).current;
 
@@ -80,21 +78,21 @@ export default function OnboardingScreen() {
     return () => clearInterval(rotation);
   }, [slides.length]);
 
-  const photoStyle = useAnimatedStyle(() => ({
+  const fullStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(step.value, [1, 2], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
     top: interpolate(step.value, [0, 1, 2], [0, 0, cardTop], Extrapolation.CLAMP),
     left: interpolate(step.value, [0, 1, 2], [0, 0, cardLeft], Extrapolation.CLAMP),
     width: interpolate(step.value, [0, 1, 2], [width, width, cardWidth], Extrapolation.CLAMP),
     height: interpolate(step.value, [0, 1, 2], [height, height, cardHeight], Extrapolation.CLAMP),
     borderRadius: interpolate(step.value, [0, 1, 2], [0, 0, radius.section], Extrapolation.CLAMP),
+    opacity: interpolate(step.value, [1, 2], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const brandStyle = useAnimatedStyle(() => ({
-    top: interpolate(
-      step.value,
-      [0, 1, 2],
-      [insets.top + space.s4, insets.top + space.s4, space.s3],
-      Extrapolation.CLAMP,
-    ),
+  const cardBrandStyle = useAnimatedStyle(() => ({
+    top: space.s3,
     transform: [
       {
         scale: interpolate(step.value, [1, 2], [1, 0.72], Extrapolation.CLAMP),
@@ -102,12 +100,7 @@ export default function OnboardingScreen() {
     ],
   }));
 
-  const captionStyle = useAnimatedStyle(() => ({
-    bottom: space.s5,
-    opacity: interpolate(step.value, [1, 2], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const scrimStyle = useAnimatedStyle(() => ({
+  const cardScrimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(step.value, [1, 2], [1, 0.7], Extrapolation.CLAMP),
   }));
 
@@ -131,46 +124,38 @@ export default function OnboardingScreen() {
     opacity: interpolate(step.value, [1, 2], [0, 1], Extrapolation.CLAMP),
   }));
 
+  const photoBody = (card: boolean) => (
+    <>
+      {slide ? (
+        <Animated.Image
+          key={`${card ? 'card' : 'full'}-${slide.mediaId}`}
+          source={{ uri: slide.url }}
+          resizeMode="cover"
+          entering={FadeIn.duration(1000)}
+          exiting={FadeOut.duration(800)}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      <Animated.View style={[styles.scrim, card ? cardScrimStyle : null]} />
+      <Animated.View style={[styles.brand, card ? cardBrandStyle : { top: insets.top + space.s4 }]}>
+        <Text role="heroSm" tone="onFill">
+          Remember
+        </Text>
+        <ExpoImage
+          source={require('../../../../assets/logo/logo-2048x2048.svg')}
+          contentFit="contain"
+          style={styles.logo}
+        />
+      </Animated.View>
+    </>
+  );
+
   return (
     <GestureDetector gesture={gesture}>
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: color.ink }]}>
         <StatusBar style="light" />
-        <Animated.View style={[styles.photo, photoStyle]}>
-          {slide ? (
-            <Animated.Image
-              key={slide.mediaId}
-              source={{ uri: slide.url }}
-              resizeMode="cover"
-              entering={FadeIn.duration(1000)}
-              exiting={FadeOut.duration(800)}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null}
-          <Animated.View style={[styles.scrim, scrimStyle]} />
-          <Animated.View style={[styles.brand, brandStyle]}>
-            <Text role="heroSm" tone="onFill">
-              Remember
-            </Text>
-            <ExpoImage
-              source={require('../../../../assets/logo/logo-2048x2048.svg')}
-              contentFit="contain"
-              style={styles.logo}
-            />
-          </Animated.View>
-          <Animated.View style={[styles.caption, captionStyle]}>
-            {caption ? (
-              <Animated.View
-                key={index}
-                entering={FadeInLeft.duration(600)}
-                exiting={FadeOutRight.duration(400)}
-              >
-                <Text role="display" tone="onFill">
-                  {caption}
-                </Text>
-              </Animated.View>
-            ) : null}
-          </Animated.View>
-        </Animated.View>
+        <Animated.View style={[styles.fullPhoto, fullStyle]}>{photoBody(false)}</Animated.View>
+        <Animated.View style={[styles.cardPhoto, cardStyle]}>{photoBody(true)}</Animated.View>
 
         <Animated.View style={[styles.action, actionStyle]}>
           <View style={styles.actionInner}>
@@ -206,7 +191,15 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
-  photo: {
+  fullPhoto: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+  },
+  cardPhoto: {
     position: 'absolute',
     overflow: 'hidden',
   },
@@ -228,11 +221,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 80,
     height: 80,
-  },
-  caption: {
-    position: 'absolute',
-    left: space.s5,
-    right: space.s5,
   },
   action: {
     position: 'absolute',
