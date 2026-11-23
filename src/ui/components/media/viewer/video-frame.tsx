@@ -82,7 +82,7 @@ export function VideoFrame({
   useEffect(() => {
     setFirstFrame(false);
     posterOpacity.value = 1;
-  }, [photo.playbackUrl, posterOpacity]);
+  }, [uri, posterOpacity]);
 
   useEffect(() => {
     if (!active) {
@@ -258,6 +258,8 @@ function Video({
     setPlaying(isPlaying);
   });
 
+  useEventListener(player, 'timeUpdate', onFirstFrame);
+
   useEffect(() => {
     player.muted = muted;
   }, [muted, player]);
@@ -269,7 +271,7 @@ function Video({
   useEffect(() => {
     player.play();
     return () => player.pause();
-  }, [player]);
+  }, [player, uri]);
 
   const toggle = () => {
     if (player.playing) player.pause();
