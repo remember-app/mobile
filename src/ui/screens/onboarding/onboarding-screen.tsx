@@ -58,11 +58,11 @@ export default function OnboardingScreen() {
     Gesture.Pan()
       .maxPointers(1)
       .onEnd((event) => {
+        if (Math.abs(event.translationY) < 60) return;
+        if (Math.abs(event.translationY) <= Math.abs(event.translationX)) return;
         const current = Math.round(step.value);
-        const down = event.translationY > 80 && event.translationY > Math.abs(event.translationX);
-        const right = event.translationX > 50 && event.translationX > Math.abs(event.translationY);
-        if (down) scheduleOnRN(go, Math.max(0, current - 1));
-        else if (current === 0 && right) scheduleOnRN(go, 1);
+        const next = event.translationY < 0 ? current + 1 : current - 1;
+        scheduleOnRN(go, Math.max(0, Math.min(2, next)));
       }),
   ).current;
 
