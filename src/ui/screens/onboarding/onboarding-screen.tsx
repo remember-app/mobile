@@ -3,20 +3,24 @@ import { StatusBar } from 'expo-status-bar';
 import { Apple, Mail } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollViewInstance,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, {
-  Easing,
   Extrapolation,
   FadeIn,
   FadeOut,
   interpolate,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { loadSystemMedia } from '@/functionality';
 import { useSystemMedia } from '@/ui/hooks';
@@ -33,6 +37,8 @@ export default function OnboardingScreen() {
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const step = useSharedValue(0);
+  const scroller = useRef<ScrollViewInstance>(null);
+  const settled = useRef(0);
   const media = useSystemMedia();
   const slides = media.filter((item) => item.name.startsWith('onboarding-'));
   const slide = slides.length > 0 ? slides[index % slides.length] : undefined;
@@ -46,25 +52,25 @@ export default function OnboardingScreen() {
 
   const go = useCallback(
     (next: number) => {
-      step.value = withTiming(Math.max(0, Math.min(2, next)), {
-        duration: 380,
-        easing: Easing.out(Easing.cubic),
-      });
+      const target = Math.max(0, Math.min(2, next));
+      settled.current = target;
+      scroller.current?.scrollTo({ y: target * height, animated: true });
     },
-    [step],
+    [height],
   );
 
-  const gesture = useRef(
-    Gesture.Pan()
-      .maxPointers(1)
-      .onEnd((event) => {
-        if (Math.abs(event.translationY) < 60) return;
-        if (Math.abs(event.translationY) <= Math.abs(event.translationX)) return;
-        const current = Math.round(step.value);
-        const next = event.translationY < 0 ? current + 1 : current - 1;
-        scheduleOnRN(go, Math.max(0, Math.min(2, next)));
-      }),
-  ).current;
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    step.value = Math.max(0, Math.min(2, event.contentOffset.y / height));
+  });
+
+  const settle = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nearest = Math.round(event.nativeEvent.contentOffset.y / height);
+      const stepChange = Math.max(-1, Math.min(1, nearest - settled.current));
+      go(Math.max(0, Math.min(2, settled.current + stepChange)));
+    },
+    [go, height],
+  );
 
   useEffect(() => {
     void loadSystemMedia();
@@ -151,38 +157,51 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <GestureDetector gesture={gesture}>
-      <View style={[styles.root, { backgroundColor: color.ink }]}>
-        <StatusBar style="light" />
-        <Animated.View style={[styles.fullPhoto, fullStyle]}>{photoBody(false)}</Animated.View>
-        <Animated.View style={[styles.cardPhoto, cardStyle]}>{photoBody(true)}</Animated.View>
+    <View style={[styles.root, { backgroundColor: color.ink }]}>
+      <StatusBar style="light" />
+      <Animated.View style={[styles.fullPhoto, fullStyle]}>{photoBody(false)}</Animated.View>
+      <Animated.View style={[styles.cardPhoto, cardStyle]}>{photoBody(true)}</Animated.View>
 
-        <Animated.View style={[styles.action, actionStyle]}>
-          <View style={styles.actionInner}>
-            <View style={styles.providers}>
-              <Button label="Google" variant="secondary" wide={false} style={styles.provider} />
-              <Button
-                label="Apple"
-                variant="secondary"
-                icon={Apple}
-                wide={false}
-                style={styles.provider}
-              />
-            </View>
+      <Animated.View style={[styles.action, actionStyle]}>
+        <View style={styles.actionInner}>
+          <View style={styles.providers}>
+            <Button label="Google" variant="secondary" wide={false} style={styles.provider} />
             <Button
-              label={t('onboarding.welcome.continue')}
-              variant="primary"
-              icon={Mail}
-              onPress={() => go(2)}
+              label="Apple"
+              variant="secondary"
+              icon={Apple}
+              wide={false}
+              style={styles.provider}
             />
           </View>
-        </Animated.View>
+          <Button
+            label={t('onboarding.welcome.continue')}
+            variant="primary"
+            icon={Mail}
+            onPress={() => go(2)}
+          />
+        </View>
+      </Animated.View>
 
-        <Animated.View style={[styles.keyboard, keyboardStyle]}>
-          <View style={styles.handle} />
-        </Animated.View>
-      </View>
-    </GestureDetector>
+      <Animated.View style={[styles.keyboard, keyboardStyle]}>
+        <View style={styles.handle} />
+      </Animated.View>
+
+      <Animated.ScrollView
+        ref={scroller}
+        style={styles.scroll}
+        contentContainerStyle={{ height: height * 3 }}
+        snapToOffsets={[0, height, height * 2]}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={scrollHandler}
+        onScrollEndDrag={settle}
+        onMomentumScrollEnd={settle}
+      />
+    </View>
   );
 }
 
@@ -190,6 +209,14 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     overflow: 'hidden',
+  },
+  scroll: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
   },
   fullPhoto: {
     position: 'absolute',
