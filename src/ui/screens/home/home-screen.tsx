@@ -1,5 +1,5 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,6 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { loadMoreProjects, loadProjects, projectCoverFrames } from '@/functionality';
 import type { ProjectCard as ProjectCardModel } from '@/models';
 import { ProjectCardSkeleton } from '@/ui/components/feedback/skeletons';
-import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project/project-card';
 import { useProjects } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/controls/action-bar';
@@ -29,7 +28,6 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
   const [refreshing, setRefreshing] = useState(false);
   const [covers, setCovers] = useState<Record<string, string[]>>({});
   const state = useProjects();
@@ -81,85 +79,77 @@ export default function HomeScreen() {
   }, [cards]);
 
   return (
-    <>
-      <View style={styles.root}>
-        {loading ? (
-          <View
-            style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom + 92 }]}
-          >
-            {[0, 1, 2].map((key) => (
-              <ProjectCardSkeleton key={key} />
-            ))}
-          </View>
-        ) : cards.length === 0 ? (
-          <View style={styles.emptyFill}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('home.create')}
-              onPress={() => router.navigate('/create')}
-              style={styles.newCard}
-            />
-          </View>
-        ) : (
-          <GestureDetector gesture={pull}>
-            <FlashList
-              ref={list}
-              data={cards}
-              keyExtractor={(entry) => entry.id}
-              onContentSizeChange={(_width, height) => {
-                if (anchored.current || height <= 0) return;
-                anchored.current = true;
-                list.current?.scrollToEnd({ animated: false });
-              }}
-              onScroll={trackScroll}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'flex-end',
-                paddingTop: insets.top,
-                paddingBottom: insets.bottom + 92,
-                paddingHorizontal: space.s4,
-              }}
-              ItemSeparatorComponent={() => <View style={styles.gap} />}
-              onEndReached={() => void loadMoreProjects()}
-              onEndReachedThreshold={0.6}
-              renderItem={({ item }) => (
-                <ProjectCard
-                  project={item}
-                  covers={covers[item.id]}
-                  onPress={() =>
-                    router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
-                  }
-                />
-              )}
-            />
-          </GestureDetector>
-        )}
-        <IconButton
-          icon={User}
-          label={t('home.profile')}
-          tone="surface"
-          size={44}
-          style={[styles.profile, { top: insets.top + space.s1 }]}
-          onPress={() => router.navigate('/profile')}
-        />
-        {cards.length > 0 ? (
-          <ActionBar>
-            <Button
-              label={t('home.create')}
-              variant="primary"
-              onPress={() => router.navigate('/create')}
-            />
-          </ActionBar>
-        ) : null}
-      </View>
-      {celebrate ? (
-        <OnboardingFinal
-          name={celebrate}
-          onDone={() => router.setParams({ celebrate: undefined })}
-        />
+    <View style={styles.root}>
+      {loading ? (
+        <View
+          style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom + 92 }]}
+        >
+          {[0, 1, 2].map((key) => (
+            <ProjectCardSkeleton key={key} />
+          ))}
+        </View>
+      ) : cards.length === 0 ? (
+        <View style={styles.emptyFill}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.create')}
+            onPress={() => router.navigate('/create')}
+            style={styles.newCard}
+          />
+        </View>
+      ) : (
+        <GestureDetector gesture={pull}>
+          <FlashList
+            ref={list}
+            data={cards}
+            keyExtractor={(entry) => entry.id}
+            onContentSizeChange={(_width, height) => {
+              if (anchored.current || height <= 0) return;
+              anchored.current = true;
+              list.current?.scrollToEnd({ animated: false });
+            }}
+            onScroll={trackScroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: 'flex-end',
+              paddingTop: insets.top,
+              paddingBottom: insets.bottom + 92,
+              paddingHorizontal: space.s4,
+            }}
+            ItemSeparatorComponent={() => <View style={styles.gap} />}
+            onEndReached={() => void loadMoreProjects()}
+            onEndReachedThreshold={0.6}
+            renderItem={({ item }) => (
+              <ProjectCard
+                project={item}
+                covers={covers[item.id]}
+                onPress={() =>
+                  router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
+                }
+              />
+            )}
+          />
+        </GestureDetector>
+      )}
+      <IconButton
+        icon={User}
+        label={t('home.profile')}
+        tone="surface"
+        size={44}
+        style={[styles.profile, { top: insets.top + space.s1 }]}
+        onPress={() => router.navigate('/profile')}
+      />
+      {cards.length > 0 ? (
+        <ActionBar>
+          <Button
+            label={t('home.create')}
+            variant="primary"
+            onPress={() => router.navigate('/create')}
+          />
+        </ActionBar>
       ) : null}
-    </>
+    </View>
   );
 }
 

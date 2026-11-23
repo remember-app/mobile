@@ -1,1 +1,1 @@
-export { default } from '@/ui/screens/onboarding/welcome-screen';
+export { default } from '@/ui/screens/onboarding/onboarding-screen';

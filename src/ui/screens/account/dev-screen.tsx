@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { DevSettings, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { config } from '@/config';
-import { currentToken, requestCode, setNetworkOverride, signOut } from '@/functionality';
+import { currentToken, setNetworkOverride, signOut } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { listUsers } from '@/integrations/api';
 import { clearCache } from '@/integrations/files/cache';
@@ -95,8 +95,7 @@ export default function DevScreen() {
     setError(null);
     try {
       await signOut();
-      await requestCode(email);
-      router.navigate({ pathname: '/onboarding/sign-up', params: { step: 'code', email } });
+      router.navigate('/onboarding/welcome');
     } catch {
       setError('Не удалось отправить код на эту почту');
     } finally {

@@ -53,8 +53,7 @@ export function wallpaperFor(
   montages: readonly Montage[],
   items: readonly Item[],
 ): Wallpaper {
-  if (routeName === 'onboarding' || routeName === 'welcome') return solid;
-  if (routeName === 'sign-up') return plain();
+  if (routeName === 'welcome') return solid;
   if (routeName === 'project/[id]/settings') return plain();
 
   if (routeName === 'home') {

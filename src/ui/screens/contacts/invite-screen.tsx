@@ -11,7 +11,7 @@ export default function InviteLinkScreen() {
   useEffect(() => {
     const parsed = typeof token === 'string' ? parseInvite(token) : null;
     if (parsed) stashInvite(parsed);
-    router.replace('/onboarding/sign-up');
+    router.replace('/onboarding/welcome');
   }, [router, token]);
 
   return <View style={styles.root} />;
