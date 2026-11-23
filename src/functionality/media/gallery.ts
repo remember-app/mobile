@@ -9,7 +9,6 @@ import {
   type MediaPatch,
   updateItemComment,
 } from '@/integrations/api';
-import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import { clearMediaGroup } from '@/integrations/files/media-cache';
 import type { Analysis, DownloadLink, Item } from '@/models';
 import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
@@ -19,11 +18,6 @@ export type GalleryState = {
   items: Item[];
   nextCursor: string | null;
   error: unknown;
-};
-
-type Stored = {
-  items: Item[];
-  nextCursor: string | null;
 };
 
 const EMPTY: GalleryState = {
@@ -37,8 +31,6 @@ const states = new Map<ProjectId, GalleryState>();
 const inFlight = new Map<ProjectId, Promise<void>>();
 const itemLoads = new Map<string, Promise<Item>>();
 const listeners = new Set<() => void>();
-
-const cacheName = (projectId: ProjectId) => `gallery-v4-${projectId}`;
 
 export const galleryState = (projectId: ProjectId | undefined): GalleryState =>
   projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;
@@ -55,36 +47,6 @@ function emit(projectId: ProjectId, next: GalleryState): void {
   for (const listener of listeners) listener();
 }
 
-function revive(item: Item): Item {
-  return {
-    ...item,
-    createdAt: new Date(item.createdAt),
-    media: {
-      ...item.media,
-      meta: {
-        ...item.media.meta,
-        at: item.media.meta.at === null ? null : new Date(item.media.meta.at),
-      },
-    },
-  };
-}
-
-function persist(projectId: ProjectId): void {
-  const current = galleryState(projectId);
-  writeCache(cacheName(projectId), { items: current.items, nextCursor: current.nextCursor });
-}
-
-export function hydrateGallery(projectId: ProjectId): void {
-  const stored = readCache<Stored>(cacheName(projectId));
-  if (!stored || !Array.isArray(stored.items)) return;
-  emit(projectId, {
-    status: 'ready',
-    items: stored.items.map(revive),
-    nextCursor: stored.nextCursor,
-    error: null,
-  });
-}
-
 export function clearGalleries(): void {
   states.clear();
   for (const listener of listeners) listener();
@@ -93,7 +55,6 @@ export function clearGalleries(): void {
 export function forgetGallery(projectId: ProjectId): void {
   clearMediaGroup(projectId);
   states.delete(projectId);
-  removeCache(cacheName(projectId));
   for (const listener of listeners) listener();
 }
 
@@ -118,7 +79,6 @@ export function setItemLabels(
     return { ...item, labelIds };
   });
   emit(projectId, { ...current, items });
-  persist(projectId);
 }
 
 export function setItemAnalyses(
@@ -139,7 +99,6 @@ export function setItemAnalyses(
   });
   if (!changed) return;
   emit(projectId, { ...current, items });
-  persist(projectId);
 }
 
 function mergeItem(projectId: ProjectId, item: Item): void {
@@ -151,7 +110,6 @@ function mergeItem(projectId: ProjectId, item: Item): void {
         (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
       );
   emit(projectId, { ...current, items });
-  persist(projectId);
 }
 
 export async function loadGallery(projectId: ProjectId, force = false): Promise<void> {
@@ -169,7 +127,6 @@ export async function loadGallery(projectId: ProjectId, force = false): Promise<
         nextCursor: page.nextCursor,
         error: null,
       });
-      persist(projectId);
     } catch (error) {
       emit(projectId, {
         ...galleryState(projectId),
@@ -201,7 +158,6 @@ export async function loadMoreGallery(projectId: ProjectId): Promise<void> {
         nextCursor: page.nextCursor,
         error: null,
       });
-      persist(projectId);
     } catch (error) {
       emit(projectId, { ...galleryState(projectId), error });
     } finally {
@@ -235,7 +191,6 @@ async function fetchGalleryAll(projectId: ProjectId): Promise<Item[]> {
   } while (cursor);
   const list = [...items.values()];
   emit(projectId, { status: 'ready', items: list, nextCursor: null, error: null });
-  persist(projectId);
   return list;
 }
 
@@ -295,7 +250,6 @@ export async function removeItem(projectId: ProjectId, itemId: ProjectItemId): P
     ...current,
     items: current.items.filter((candidate) => candidate.id !== itemId),
   });
-  persist(projectId);
 }
 
 export async function removeItems(
@@ -318,7 +272,6 @@ export async function removeItems(
       ...current,
       items: current.items.filter((candidate) => !gone.has(candidate.id)),
     });
-    persist(projectId);
   }
   return { failed: targets.length - gone.size };
 }

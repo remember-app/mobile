@@ -3,7 +3,6 @@ import { loadAvatar } from '@/functionality/account/avatar';
 import { onSignOut, restoreSession, sessionState } from '@/functionality/auth/session';
 import { hydrateContacts, loadContacts } from '@/functionality/contact/contacts';
 import { hydrateLabels } from '@/functionality/label/labels';
-import { hydrateGallery } from '@/functionality/media/gallery';
 import { hydrateMontages } from '@/functionality/montage/montages';
 import { hydrateMovies } from '@/functionality/movie/movies';
 import { isOnline, subscribeNetwork } from '@/functionality/network/network';
@@ -12,7 +11,7 @@ import { hydrateProjects, loadProjects } from '@/functionality/project/projects'
 import { registerPush } from '@/functionality/push/push';
 import { hydrateOwnSongs } from '@/functionality/song/mine';
 import { hydrateLibrarySongs, hydrateProjectSongs } from '@/functionality/song/songs';
-import { hydrateUploads, pump } from '@/functionality/upload/queue';
+import { pump } from '@/functionality/upload/queue';
 import { onAppActive } from '@/integrations/app-state';
 import {
   defineUploadTask,
@@ -44,13 +43,11 @@ function wire(): void {
 export function hydrateGlobal(): void {
   hydrateProjects();
   hydrateContacts();
-  hydrateUploads();
   hydrateLibrarySongs();
   hydrateOwnSongs();
 }
 
 export function hydrateProject(projectId: ProjectId): void {
-  hydrateGallery(projectId);
   hydrateLabels(projectId);
   hydrateMembers(projectId);
   hydrateMontages(projectId);

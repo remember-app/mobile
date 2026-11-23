@@ -10,7 +10,7 @@ import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
 
-const CACHE = 'uploads';
+const PLAYBACKS = 'video-playbacks';
 
 type UploadFile = {
   projectId: ProjectId | null;
@@ -50,8 +50,16 @@ const completed = new Set<
   (upload: UploadComplete, projectId: ProjectId | null, localId: string) => void | Promise<void>
 >();
 const localPreviews = new Map<string, string>();
+const localPlaybacks = new Map<string, string>(
+  Object.entries(readCache<Record<string, string>>(PLAYBACKS) ?? {}),
+);
 
 export const localPreviewOf = (itemId: string): string | undefined => localPreviews.get(itemId);
+export const localPlaybackOf = (itemId: string): string | undefined => localPlaybacks.get(itemId);
+
+function persistPlaybacks(): void {
+  writeCache(PLAYBACKS, Object.fromEntries(localPlaybacks));
+}
 
 function stagedName(localId: string, fileName: string): string {
   const ext = fileName.split('.').at(-1)?.toLowerCase() ?? '';
@@ -105,37 +113,18 @@ function emit(next: UploadsState): void {
   for (const listener of listeners) listener();
 }
 
-function persist(): void {
-  writeCache(CACHE, state.items);
-}
-
 function update(localId: string, patch: Partial<QueuedUpload>): void {
   emit({
     ...state,
     items: state.items.map((item) => (item.localId === localId ? { ...item, ...patch } : item)),
   });
-  persist();
-}
-
-export function hydrateUploads(): void {
-  const stored = readCache<QueuedUpload[]>(CACHE);
-  if (!Array.isArray(stored)) return;
-  emit({
-    items: stored.map((item) => ({
-      ...item,
-      posterUri: item.posterUri ?? null,
-      fingerprint: item.fingerprint ?? null,
-      itemId: item.itemId ?? null,
-      status: item.status === 'sending' ? 'waiting' : item.status,
-    })),
-    sending: false,
-  });
 }
 
 export function clearUploads(): void {
   localPreviews.clear();
+  localPlaybacks.clear();
+  persistPlaybacks();
   emit({ items: [], sending: false });
-  writeCache(CACHE, []);
 }
 
 export async function enqueueUploads(
@@ -170,7 +159,6 @@ export async function enqueueUploads(
     });
   }
   emit({ ...state, items: [...state.items, ...added] });
-  persist();
   void pump();
   return added;
 }
@@ -197,9 +185,12 @@ export async function removeUpload(localId: string): Promise<void> {
   const token = currentToken();
   if (token && item.uploadId)
     await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
-  if (item.itemId) localPreviews.delete(item.itemId);
+  if (item.itemId) {
+    localPreviews.delete(item.itemId);
+    localPlaybacks.delete(item.itemId);
+    persistPlaybacks();
+  }
   emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== localId) });
-  persist();
 }
 
 export async function removeProjectUploads(projectId: ProjectId): Promise<void> {
@@ -209,10 +200,13 @@ export async function removeProjectUploads(projectId: ProjectId): Promise<void> 
     if (token && item.uploadId) {
       await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
     }
-    if (item.itemId) localPreviews.delete(item.itemId);
+    if (item.itemId) {
+      localPreviews.delete(item.itemId);
+      localPlaybacks.delete(item.itemId);
+    }
   }
+  persistPlaybacks();
   emit({ ...state, items: state.items.filter((item) => item.projectId !== projectId) });
-  persist();
 }
 
 export function progressOf(item: QueuedUpload): { done: number; total: number } {
@@ -309,12 +303,17 @@ async function send(item: QueuedUpload, token: string): Promise<UploadComplete |
 
 async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
   update(item.localId, { itemId: done.itemId });
-  if (done.itemId !== null && item.posterUri) localPreviews.set(done.itemId, item.posterUri);
+  if (done.itemId !== null) {
+    if (item.posterUri) localPreviews.set(done.itemId, item.posterUri);
+    if (item.kind === 'video') {
+      localPlaybacks.set(done.itemId, item.uri);
+      persistPlaybacks();
+    }
+  }
   await Promise.allSettled(
     [...completed].map((listener) => listener(done, item.projectId, item.localId)),
   );
   emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== item.localId) });
-  persist();
 }
 
 onSignOut(clearUploads);

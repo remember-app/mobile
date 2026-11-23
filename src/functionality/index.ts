@@ -92,7 +92,6 @@ export {
   forgetGallery,
   type GalleryState,
   galleryState,
-  hydrateGallery,
   itemById,
   loadGallery,
   loadItem,
@@ -246,7 +245,7 @@ export {
 export {
   clearUploads,
   enqueueUploads,
-  hydrateUploads,
+  localPlaybackOf,
   localPreviewOf,
   onUploaded,
   progressOf,

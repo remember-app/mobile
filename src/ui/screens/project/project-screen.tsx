@@ -17,6 +17,7 @@ import {
   loadMoreGallery,
   loadMovies,
   loadProjects,
+  localPlaybackOf,
   localPreviewOf,
   nearDuplicateExtras,
   onUploaded,
@@ -138,7 +139,7 @@ export default function ProjectScreen() {
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
         original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
-        playbackUrl: item.kind === 'video' ? tile.playbackUrl : null,
+        playbackUrl: item.kind === 'video' ? (localPlaybackOf(item.id) ?? tile.playbackUrl) : null,
         selected: selecting ? selection.has(item.id) : undefined,
         author:
           filters.uploaderIds.length > 0
