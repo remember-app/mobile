@@ -22,6 +22,7 @@ import {
   nearDuplicateExtras,
   onUploaded,
   progressOf,
+  refreshItem,
   removeItem,
   removeItems,
   removeProjectUploads,
@@ -322,12 +323,19 @@ export default function ProjectScreen() {
           photos={photos}
           viewerPhotos={viewerPhotos}
           viewer={open}
-          onOpen={(index, rect) => {
+          onOpen={async (index, rect) => {
             const photo = photos[index];
             if (!photo) return;
             if (photo.upload?.failed) {
               retryUpload(photo.id);
               return;
+            }
+            if (
+              photo.video &&
+              photo.upload === undefined &&
+              localPlaybackOf(photo.id) === undefined
+            ) {
+              await refreshItem(projectId, photo.id as ProjectItemId).catch(() => undefined);
             }
             setOpen({ index, rect });
           }}

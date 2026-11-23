@@ -3,14 +3,11 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { currentToken, onSignOut } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
-import { readCache, writeCache } from '@/integrations/files/cache';
 import { cacheLocalFile, onCacheCleared } from '@/integrations/files/media-cache';
 import { type FilePart, readFilePart } from '@/integrations/files/parts';
 import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
-
-const PLAYBACKS = 'video-playbacks';
 
 type UploadFile = {
   projectId: ProjectId | null;
@@ -50,16 +47,10 @@ const completed = new Set<
   (upload: UploadComplete, projectId: ProjectId | null, localId: string) => void | Promise<void>
 >();
 const localPreviews = new Map<string, string>();
-const localPlaybacks = new Map<string, string>(
-  Object.entries(readCache<Record<string, string>>(PLAYBACKS) ?? {}),
-);
+const localPlaybacks = new Map<string, string>();
 
 export const localPreviewOf = (itemId: string): string | undefined => localPreviews.get(itemId);
 export const localPlaybackOf = (itemId: string): string | undefined => localPlaybacks.get(itemId);
-
-function persistPlaybacks(): void {
-  writeCache(PLAYBACKS, Object.fromEntries(localPlaybacks));
-}
 
 function stagedName(localId: string, fileName: string): string {
   const ext = fileName.split('.').at(-1)?.toLowerCase() ?? '';
@@ -123,7 +114,6 @@ function update(localId: string, patch: Partial<QueuedUpload>): void {
 export function clearUploads(): void {
   localPreviews.clear();
   localPlaybacks.clear();
-  persistPlaybacks();
   emit({ items: [], sending: false });
 }
 
@@ -188,7 +178,6 @@ export async function removeUpload(localId: string): Promise<void> {
   if (item.itemId) {
     localPreviews.delete(item.itemId);
     localPlaybacks.delete(item.itemId);
-    persistPlaybacks();
   }
   emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== localId) });
 }
@@ -205,7 +194,6 @@ export async function removeProjectUploads(projectId: ProjectId): Promise<void> 
       localPlaybacks.delete(item.itemId);
     }
   }
-  persistPlaybacks();
   emit({ ...state, items: state.items.filter((item) => item.projectId !== projectId) });
 }
 
@@ -249,6 +237,7 @@ async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan> {
       sizeBytes: item.sizeBytes,
       fileName: item.fileName.slice(0, 255),
       capturedAt: item.capturedAt,
+      durationSeconds: item.durationSeconds,
     });
     update(item.localId, {
       uploadId: plan.id,
@@ -307,7 +296,6 @@ async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
     if (item.posterUri) localPreviews.set(done.itemId, item.posterUri);
     if (item.kind === 'video') {
       localPlaybacks.set(done.itemId, item.uri);
-      persistPlaybacks();
     }
   }
   await Promise.allSettled(

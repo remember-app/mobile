@@ -11,6 +11,7 @@ export type NewUpload = {
   sizeBytes: number;
   fileName: string;
   capturedAt?: string | null;
+  durationSeconds?: number | null;
 };
 
 export function listUploads(
