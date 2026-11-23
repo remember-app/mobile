@@ -70,11 +70,7 @@ export default function OnboardingScreen() {
     return () => clearInterval(rotation);
   }, [slides.length]);
 
-  const fullStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(step.value, [0, 1], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const cardStyle = useAnimatedStyle(() => ({
+  const photoStyle = useAnimatedStyle(() => ({
     top: interpolate(step.value, [0, 1, 2], [0, cardTop, cardTop], Extrapolation.CLAMP),
     left: interpolate(step.value, [0, 1, 2], [0, cardLeft, cardLeft], Extrapolation.CLAMP),
     width: interpolate(step.value, [0, 1, 2], [width, cardWidth, cardWidth], Extrapolation.CLAMP),
@@ -84,12 +80,21 @@ export default function OnboardingScreen() {
       [height, cardStep1Height, cardStep2Height],
       Extrapolation.CLAMP,
     ),
-    borderRadius: interpolate(step.value, [0, 1], [0, radius.section], Extrapolation.CLAMP),
-    opacity: interpolate(step.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    borderRadius: interpolate(
+      step.value,
+      [0, 1, 2],
+      [0, radius.section, radius.section],
+      Extrapolation.CLAMP,
+    ),
   }));
 
-  const cardBrandStyle = useAnimatedStyle(() => ({
-    top: space.s3,
+  const brandStyle = useAnimatedStyle(() => ({
+    top: interpolate(
+      step.value,
+      [0, 1, 2],
+      [insets.top + space.s4, space.s3, space.s3],
+      Extrapolation.CLAMP,
+    ),
     transform: [
       {
         scale: interpolate(step.value, [1, 2], [1, 0.72], Extrapolation.CLAMP),
@@ -97,7 +102,7 @@ export default function OnboardingScreen() {
     ],
   }));
 
-  const cardScrimStyle = useAnimatedStyle(() => ({
+  const scrimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(step.value, [1, 2], [1, 0.7], Extrapolation.CLAMP),
   }));
 
@@ -121,37 +126,32 @@ export default function OnboardingScreen() {
     opacity: interpolate(step.value, [1, 2], [0, 1], Extrapolation.CLAMP),
   }));
 
-  const photoBody = (card: boolean) => (
-    <>
-      {slide ? (
-        <Animated.Image
-          key={`${card ? 'card' : 'full'}-${slide.mediaId}`}
-          source={{ uri: slide.url }}
-          resizeMode="cover"
-          entering={FadeIn.duration(1000)}
-          exiting={FadeOut.duration(800)}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : null}
-      <Animated.View style={[styles.scrim, card ? cardScrimStyle : null]} />
-      <Animated.View style={[styles.brand, card ? cardBrandStyle : { top: insets.top + space.s4 }]}>
-        <Text role="heroSm" tone="onFill">
-          Remember
-        </Text>
-        <ExpoImage
-          source={require('../../../../assets/logo/logo-2048x2048.svg')}
-          contentFit="contain"
-          style={styles.logo}
-        />
-      </Animated.View>
-    </>
-  );
-
   return (
     <View style={[styles.root, { backgroundColor: color.ink }]}>
       <StatusBar style="light" />
-      <Animated.View style={[styles.fullPhoto, fullStyle]}>{photoBody(false)}</Animated.View>
-      <Animated.View style={[styles.cardPhoto, cardStyle]}>{photoBody(true)}</Animated.View>
+      <Animated.View style={[styles.photo, photoStyle]}>
+        {slide ? (
+          <Animated.Image
+            key={slide.mediaId}
+            source={{ uri: slide.url }}
+            resizeMode="cover"
+            entering={FadeIn.duration(1000)}
+            exiting={FadeOut.duration(800)}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        <Animated.View style={[styles.scrim, scrimStyle]} />
+        <Animated.View style={[styles.brand, brandStyle]}>
+          <Text role="heroSm" tone="onFill">
+            Remember
+          </Text>
+          <ExpoImage
+            source={require('../../../../assets/logo/logo-2048x2048.svg')}
+            contentFit="contain"
+            style={styles.logo}
+          />
+        </Animated.View>
+      </Animated.View>
 
       <Animated.View style={[styles.action, actionStyle]}>
         <View style={[styles.actionInner, { paddingBottom: insets.bottom }]}>
@@ -207,15 +207,7 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 1,
   },
-  fullPhoto: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    overflow: 'hidden',
-  },
-  cardPhoto: {
+  photo: {
     position: 'absolute',
     overflow: 'hidden',
   },
