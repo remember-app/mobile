@@ -99,7 +99,7 @@ export function itemPreview(item: Item, size: PreviewSize): string | null {
 }
 
 export function itemPlayback(item: Item): string | null {
-  return item.links.compressed ?? item.links.original;
+  return item.links.original;
 }
 
 /** Дата кадра: съёмки, если известна, иначе загрузки — одно правило на всё приложение. */
