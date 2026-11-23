@@ -240,8 +240,6 @@ async function fetchGalleryAll(projectId: ProjectId): Promise<Item[]> {
 }
 
 export async function loadItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
-  const known = itemById(projectId, itemId);
-  if (known) return known;
   return refreshItem(projectId, itemId);
 }
 

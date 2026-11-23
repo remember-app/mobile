@@ -65,7 +65,7 @@ async function stage(file: UploadFile, localId: string) {
     if (file.kind === 'photo') posterUri = uri;
     if (file.kind === 'video') {
       try {
-        const shot = await VideoThumbnails.getThumbnailAsync(file.uri, { time: 0, quality: 0.7 });
+        const shot = await VideoThumbnails.getThumbnailAsync(uri, { time: 200, quality: 0.7 });
         posterUri = await cacheLocalFile(shot.uri, `${localId}.jpg`, file.projectId);
       } catch (error) {
         console.warn('video thumbnail was not created:', error);
