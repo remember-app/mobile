@@ -27,7 +27,6 @@ import { useGallerySelection } from '@/ui/gallery-selection';
 import { useProjectCard, useUploads } from '@/ui/hooks';
 import { NoticeBanner } from '@/ui/kit/chrome/banner';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
-import { ActionBar } from '@/ui/kit/controls/action-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/controls/button';
 import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
@@ -74,6 +73,7 @@ export default function PickScreen() {
   const [duplicates, setDuplicates] = useState<Set<string>>(new Set());
   const [checking, setChecking] = useState(false);
   const [datesOnly, setDatesOnly] = useState(false);
+  const [selecting, setSelecting] = useState(true);
   const {
     viewer: preview,
     open: openPreview,
@@ -105,8 +105,13 @@ export default function PickScreen() {
   const availableRef = useRef(available);
   availableRef.current = available;
   const from = project?.eventStart ? project.eventStart.getTime() : null;
+  // Конец мероприятия — это день, а не мгновение в его начале: последний день входит целиком.
   const to = project?.eventEnd
-    ? project.eventEnd.getTime()
+    ? new Date(
+        project.eventEnd.getFullYear(),
+        project.eventEnd.getMonth(),
+        project.eventEnd.getDate() + 1,
+      ).getTime()
     : from === null
       ? null
       : from + 24 * 60 * 60 * 1000;
@@ -263,6 +268,7 @@ export default function PickScreen() {
   };
 
   const selectAll = () => {
+    setSelecting(true);
     const picked = ordered.filter(inDates);
     selection.replace(picked.map((asset) => asset.id));
     setDuplicates(new Set());
@@ -275,7 +281,13 @@ export default function PickScreen() {
     if (selection.ids.size === 0 || !id || checking) return;
     const projectId = id as ProjectId;
     const byId = new Map(assets.map((asset) => [asset.id, asset]));
-    const chosen = selection.list.flatMap((assetId) => byId.get(assetId) ?? []);
+    // Отправляем от старых к новым: к моменту, когда дойдёт очередь, новые кадры не повиснут
+    // в очереди позади уже устаревших.
+    const chosen = selection.list
+      .flatMap((assetId) => byId.get(assetId) ?? [])
+      .sort(
+        (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+      );
     setChecking(true);
     setPreparing({ done: 0, total: chosen.length });
     try {
@@ -300,7 +312,6 @@ export default function PickScreen() {
               file: {
                 projectId,
                 uri: local.uri,
-                previewUri: local.previewUri,
                 fileName: local.fileName,
                 kind: local.kind,
                 sizeBytes: local.sizeBytes,
@@ -327,7 +338,7 @@ export default function PickScreen() {
       const upload = (entries: typeof prepared) =>
         enqueueUploads(entries.map((entry) => ({ ...entry.file, fingerprint: entry.fingerprint })));
       if (dup.size === 0) {
-        upload(prepared);
+        await upload(prepared);
         goBack(router);
         return;
       }
@@ -339,20 +350,20 @@ export default function PickScreen() {
         {
           text: t('picker.excludeDuplicates'),
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const rest = prepared.filter((entry) => !dup.has(entry.assetId));
             selection.replace(selection.list.filter((assetId) => !dup.has(assetId)));
             setDuplicates(new Set());
             if (rest.length === 0) return;
-            upload(rest);
+            await upload(rest);
             goBack(router);
           },
         },
         {
           text: t('picker.uploadAnyway'),
-          onPress: () => {
+          onPress: async () => {
             setDuplicates(new Set());
-            upload(prepared);
+            await upload(prepared);
             goBack(router);
           },
         },
@@ -464,25 +475,16 @@ export default function PickScreen() {
                   disabled: checking,
                   onPress: primaryPress,
                 },
-                selectionDefault: true,
+                selecting,
                 canSelect: true,
                 onSelectingChange: (next) => {
+                  setSelecting(next);
                   if (!next) selection.clear();
                 },
                 filters,
                 onFiltersChange: setFilters,
                 filterFields: { labels: false, uploaders: false },
                 bottom: insets.bottom + space.s3,
-                renderSelectionActions: () => (
-                  <ActionBar>
-                    <Button
-                      label={actionLabel}
-                      variant="primary"
-                      disabled={checking}
-                      onPress={primaryPress}
-                    />
-                  </ActionBar>
-                ),
               }}
               padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
               onLoadMore={() => void loadMore()}

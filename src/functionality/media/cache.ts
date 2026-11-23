@@ -10,16 +10,13 @@ import {
   mediaCacheUsage,
 } from '@/integrations/files/media-cache';
 import { saveToPhone, shareFile } from '@/integrations/files/save';
-import { type Item, itemPreview } from '@/models';
+import type { Item } from '@/models';
 
 export const cachedOriginal = (item: Item): string | null =>
   item.links.original ? cachedUrl(item.links.original, item.projectId) : null;
 
 const keep = (url: string | null, item: Item): Promise<string | null> =>
   url ? keepUrl(url, item.projectId) : Promise.resolve(null);
-
-export const ensureThumbnail = (item: Item): Promise<string | null> =>
-  keep(itemPreview(item, 'small'), item);
 
 export const ensureOriginal = (item: Item): Promise<string | null> =>
   keep(item.links.original, item);

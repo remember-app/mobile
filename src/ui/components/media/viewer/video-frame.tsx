@@ -37,6 +37,7 @@ export function VideoFrame({
   hudFade,
   hudStyle,
   info,
+  canInfo,
   onInfo,
   onDismiss,
   reveal,
@@ -58,6 +59,7 @@ export function VideoFrame({
   hudFade: SharedValue<number>;
   hudStyle: AnimatedStyle<ViewStyle>;
   info: boolean;
+  canInfo: boolean;
   onInfo: (value: boolean) => void;
   onDismiss: () => void;
   reveal: SharedValue<number>;
@@ -106,6 +108,7 @@ export function VideoFrame({
   const { openInfo, closeInfo, dismiss } = verticalGestures({
     height,
     info,
+    canInfo,
     zoomed,
     lift,
     dragY,

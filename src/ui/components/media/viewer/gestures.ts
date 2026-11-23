@@ -6,6 +6,7 @@ import { clamp } from './geometry';
 export type VerticalProps = {
   height: number;
   info: boolean;
+  canInfo: boolean;
   zoomed: boolean;
   lift: SharedValue<number>;
   dragY: SharedValue<number>;
@@ -18,6 +19,7 @@ export type VerticalProps = {
 export function verticalGestures({
   height,
   info,
+  canInfo,
   zoomed,
   lift,
   dragY,
@@ -29,7 +31,7 @@ export function verticalGestures({
   const span = height * 0.32;
 
   const openInfo = Gesture.Pan()
-    .enabled(!info && !zoomed)
+    .enabled(canInfo && !info && !zoomed)
     .maxPointers(1)
     .activeOffsetY([-28, 10000])
     .failOffsetX([-24, 24])
@@ -47,7 +49,7 @@ export function verticalGestures({
     });
 
   const closeInfo = Gesture.Pan()
-    .enabled(info && !zoomed)
+    .enabled(canInfo && info && !zoomed)
     .maxPointers(1)
     .activeOffsetY([-10000, 28])
     .failOffsetX([-24, 24])

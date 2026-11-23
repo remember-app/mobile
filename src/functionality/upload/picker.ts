@@ -54,7 +54,6 @@ export async function uploadDeviceAssets(
     files.push({
       projectId,
       uri: local.uri,
-      previewUri: local.previewUri,
       fileName: local.fileName,
       kind: local.kind,
       sizeBytes: local.sizeBytes,
@@ -62,13 +61,13 @@ export async function uploadDeviceAssets(
       durationSeconds: local.durationSeconds,
     });
   }
-  enqueueUploads(files);
+  await enqueueUploads(files);
   return files.length;
 }
 
 export async function uploadAudioFiles(): Promise<number> {
   const picked = await pickFiles();
-  enqueueUploads(
+  await enqueueUploads(
     picked.map((file) => ({
       projectId: null,
       uri: file.uri,

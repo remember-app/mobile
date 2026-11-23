@@ -81,7 +81,6 @@ export {
   clearCache,
   clearCacheGroups,
   ensureOriginal,
-  ensureThumbnail,
   saveItemsToPhone,
   saveItemToPhone,
   shareItem,
@@ -246,7 +245,6 @@ export {
 } from './upload/picker';
 export {
   clearUploads,
-  dropReadyProjectPreviews,
   enqueueUploads,
   hydrateUploads,
   localPreviewOf,
@@ -257,7 +255,6 @@ export {
   removeProjectUploads,
   removeUpload,
   retryUpload,
-  setActiveProject,
   subscribeUploads,
   type UploadsState,
   uploadsState,

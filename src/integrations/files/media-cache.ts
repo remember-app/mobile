@@ -75,6 +75,18 @@ function folderReady(group: string | null, scope: MediaScope): Directory {
   return folder;
 }
 
+export async function cacheLocalFile(
+  sourceUri: string,
+  name: string,
+  group: string | null,
+  scope: MediaScope = 'misc',
+): Promise<string> {
+  const folder = folderReady(group, scope);
+  const target = new File(folder, name);
+  await new File(sourceUri).copy(target, { overwrite: true });
+  return target.uri;
+}
+
 const downloading = new Map<string, Promise<string | null>>();
 const copying = new Map<string, Promise<string | null>>();
 let queue: Promise<unknown> = Promise.resolve();

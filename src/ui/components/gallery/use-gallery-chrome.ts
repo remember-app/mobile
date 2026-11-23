@@ -6,15 +6,28 @@ const SCROLL_THRESHOLD = 16;
 export function useGalleryChrome({
   selectionDefault = false,
   canSelect = true,
+  selecting: forcedSelecting,
+  onSelectingChange,
 }: {
   selectionDefault?: boolean;
   canSelect?: boolean;
+  selecting?: boolean;
+  onSelectingChange?: (next: boolean) => void;
 }) {
   const chrome = useSharedValue(0);
   const filterAnim = useSharedValue(0);
   const [scrolled, setScrolled] = useState(false);
-  const [selecting, setSelecting] = useState(selectionDefault);
+  const [ownSelecting, setOwnSelecting] = useState(selectionDefault);
+  const selecting = forcedSelecting ?? ownSelecting;
   const [filtering, setFiltering] = useState(false);
+
+  const setSelecting = useCallback(
+    (next: boolean) => {
+      if (forcedSelecting === undefined) setOwnSelecting(next);
+      onSelectingChange?.(next);
+    },
+    [forcedSelecting, onSelectingChange],
+  );
 
   // Скрытие в просмотрщике не должно сбрасывать состояние: худ возвращается уже тем,
   // каким он должен быть сейчас, без мелькания основной кнопки.
@@ -34,8 +47,8 @@ export function useGalleryChrome({
 
   const toggleSelecting = useCallback(() => {
     if (!canSelect) return;
-    setSelecting((was) => !was);
-  }, [canSelect]);
+    setSelecting(!selecting);
+  }, [canSelect, selecting, setSelecting]);
 
   const closeFilter = useCallback(() => setFiltering(false), []);
 

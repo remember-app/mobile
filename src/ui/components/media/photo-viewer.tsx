@@ -112,6 +112,7 @@ export function PhotoViewer({
   const layout = viewerLayout(width, height, insets);
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
+  const canInfo = Boolean(renderInfo);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
   const [chrome, setChrome] = useState(true);
   const [muted, setMuted] = useState(false);
@@ -422,6 +423,7 @@ export function PhotoViewer({
                     hudFade={barFade}
                     hudStyle={barStyle}
                     info={info}
+                    canInfo={canInfo}
                     onInfo={setInfo}
                     onDismiss={leave}
                     reveal={reveal}
@@ -446,6 +448,7 @@ export function PhotoViewer({
                     lift={lift}
                     hudFade={barFade}
                     info={info}
+                    canInfo={canInfo}
                     onInfo={setInfo}
                     onZoomed={setZoomed}
                     onDismiss={leave}

@@ -1,4 +1,4 @@
-import { CheckCheck, X } from 'lucide-react-native';
+import { CheckCheck } from 'lucide-react-native';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -153,7 +153,7 @@ export function GalleryHud({
           {selecting ? selectionTools : null}
           {canSelect ? (
             <IconButton
-              icon={selecting ? X : CheckCheck}
+              icon={CheckCheck}
               label={selecting ? t('action.done') : t('project.select')}
               tone="surface"
               size={52}

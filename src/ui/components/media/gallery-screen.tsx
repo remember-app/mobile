@@ -1,4 +1,4 @@
-import { type MutableRefObject, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type MutableRefObject, type ReactNode, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 
@@ -37,6 +37,7 @@ export function useGalleryScreen(
 export type GalleryHudConfig = {
   primary?: GalleryPrimary;
   selectionDefault?: boolean;
+  selecting?: boolean;
   canSelect?: boolean;
   onSelectingChange?: (selecting: boolean) => void;
   selectionTools?: ReactNode;
@@ -105,13 +106,10 @@ export function GalleryScreen({
   const chrome = useGalleryChrome({
     selectionDefault: hud?.selectionDefault,
     canSelect: Boolean(hud?.canSelect),
+    selecting: hud?.selecting,
+    onSelectingChange: hud?.onSelectingChange,
   });
   const selecting = hud ? chrome.selecting : Boolean(onSelect);
-  const selectingChange = useRef(hud?.onSelectingChange);
-  selectingChange.current = hud?.onSelectingChange;
-  useEffect(() => {
-    selectingChange.current?.(chrome.selecting);
-  }, [chrome.selecting]);
   const shownPhotos =
     hud && !selecting ? photos.map((photo) => ({ ...photo, selected: undefined })) : photos;
   const viewingIndex = viewer === null ? -1 : viewer.index;

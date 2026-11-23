@@ -1,28 +1,37 @@
+import * as VideoThumbnails from 'expo-video-thumbnails';
+
 import { currentToken, onSignOut } from '@/functionality/auth/session';
-import { ensureThumbnail } from '@/functionality/media/cache';
-import { refreshItem } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
 import { readCache, writeCache } from '@/integrations/files/cache';
+import { cacheLocalFile, onCacheCleared } from '@/integrations/files/media-cache';
 import { type FilePart, readFilePart } from '@/integrations/files/parts';
 import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
 
 const CACHE = 'uploads';
-const FINISH_MS = 650;
+
+type UploadFile = {
+  projectId: ProjectId | null;
+  uri: string;
+  fileName: string;
+  kind: MediaKind;
+};
 
 export type QueuedUpload = {
   localId: string;
   projectId: ProjectId | null;
   uri: string;
-  previewUri: string | null;
+  posterUri: string | null;
   fileName: string;
   kind: MediaKind;
   sizeBytes: number;
   capturedAt: string | null;
   durationSeconds: number | null;
   fingerprint: string | null;
+  /** Кадр, в который превратилась загрузка: пока запись жива, галерея показывает именно его. */
+  itemId: ProjectItemId | null;
   uploadId: UploadId | null;
   partBytes: number | null;
   parts: Record<number, string>;
@@ -41,57 +50,31 @@ const completed = new Set<
   (upload: UploadComplete, projectId: ProjectId | null, localId: string) => void | Promise<void>
 >();
 const localPreviews = new Map<string, string>();
-const previewProjects = new Map<string, ProjectId>();
-const readyPreviews = new Set<string>();
-const previewQueue: { projectId: ProjectId; itemId: ProjectItemId }[] = [];
-let previewing = false;
-let activeProject: ProjectId | null = null;
 
 export const localPreviewOf = (itemId: string): string | undefined => localPreviews.get(itemId);
 
-export function setActiveProject(projectId: ProjectId | null): void {
-  activeProject = projectId;
+function stagedName(localId: string, fileName: string): string {
+  const ext = fileName.split('.').at(-1)?.toLowerCase() ?? '';
+  return `${localId}.${/^[a-z0-9]{1,8}$/.test(ext) ? ext : 'bin'}`;
 }
 
-export function dropReadyProjectPreviews(projectId: ProjectId): void {
-  let changed = false;
-  for (const [itemId, project] of previewProjects) {
-    if (project !== projectId || !readyPreviews.has(itemId)) continue;
-    localPreviews.delete(itemId);
-    previewProjects.delete(itemId);
-    readyPreviews.delete(itemId);
-    changed = true;
-  }
-  if (changed) emit({ ...state, items: [...state.items] });
-}
-
-async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promise<void> {
-  previewQueue.push({ projectId, itemId });
-  if (previewing) return;
-  previewing = true;
+async function stage(file: UploadFile, localId: string) {
   try {
-    while (previewQueue.length > 0) {
-      const next = previewQueue.shift();
-      if (!next) continue;
-      for (let attempt = 0; attempt < 120; attempt += 1) {
-        const item = await refreshItem(next.projectId, next.itemId).catch(() => undefined);
-        const ready =
-          item !== undefined &&
-          (item.links.previews.middle !== undefined ||
-            item.links.previews.small !== undefined ||
-            item.links.compressed !== null ||
-            item.links.original !== null);
-        if (ready && item) {
-          readyPreviews.add(next.itemId);
-          void ensureThumbnail(item).catch(() => undefined);
-          if (activeProject !== next.projectId) dropReadyProjectPreviews(next.projectId);
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+    const uri = await cacheLocalFile(file.uri, stagedName(localId, file.fileName), file.projectId);
+    let posterUri: string | null = null;
+    if (file.kind === 'photo') posterUri = uri;
+    if (file.kind === 'video') {
+      try {
+        const shot = await VideoThumbnails.getThumbnailAsync(file.uri, { time: 0, quality: 0.7 });
+        posterUri = await cacheLocalFile(shot.uri, `${localId}.jpg`, file.projectId);
+      } catch (error) {
+        console.warn('video thumbnail was not created:', error);
       }
     }
-  } finally {
-    previewing = false;
+    return { uri, posterUri };
+  } catch (error) {
+    console.warn('upload file could not be cached:', error);
+    return { uri: file.uri, posterUri: null };
   }
 }
 
@@ -140,8 +123,9 @@ export function hydrateUploads(): void {
   emit({
     items: stored.map((item) => ({
       ...item,
-      previewUri: item.previewUri ?? null,
+      posterUri: item.posterUri ?? null,
       fingerprint: item.fingerprint ?? null,
+      itemId: item.itemId ?? null,
       status: item.status === 'sending' ? 'waiting' : item.status,
     })),
     sending: false,
@@ -149,42 +133,42 @@ export function hydrateUploads(): void {
 }
 
 export function clearUploads(): void {
+  localPreviews.clear();
   emit({ items: [], sending: false });
   writeCache(CACHE, []);
 }
 
-export function enqueueUploads(
-  files: {
-    projectId: ProjectId | null;
-    uri: string;
-    previewUri?: string | null;
-    fileName: string;
-    kind: MediaKind;
+export async function enqueueUploads(
+  files: (UploadFile & {
     sizeBytes: number;
     capturedAt?: string | null;
     durationSeconds?: number | null;
     fingerprint?: string | null;
-  }[],
-): QueuedUpload[] {
-  const added = files.map(
-    (file): QueuedUpload => ({
-      localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  })[],
+): Promise<QueuedUpload[]> {
+  const added: QueuedUpload[] = [];
+  for (const file of files) {
+    const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const staged = await stage(file, localId);
+    added.push({
+      localId,
       projectId: file.projectId,
-      uri: file.uri,
-      previewUri: file.previewUri ?? null,
+      uri: staged.uri,
+      posterUri: staged.posterUri,
       fileName: file.fileName,
       kind: file.kind,
       sizeBytes: file.sizeBytes,
       capturedAt: file.capturedAt ?? null,
       durationSeconds: file.durationSeconds ?? null,
       fingerprint: file.fingerprint ?? null,
+      itemId: null,
       uploadId: null,
       partBytes: null,
       parts: {},
       status: 'waiting',
       error: null,
-    }),
-  );
+    });
+  }
   emit({ ...state, items: [...state.items, ...added] });
   persist();
   void pump();
@@ -213,6 +197,7 @@ export async function removeUpload(localId: string): Promise<void> {
   const token = currentToken();
   if (token && item.uploadId)
     await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
+  if (item.itemId) localPreviews.delete(item.itemId);
   emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== localId) });
   persist();
 }
@@ -224,6 +209,7 @@ export async function removeProjectUploads(projectId: ProjectId): Promise<void> 
     if (token && item.uploadId) {
       await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
     }
+    if (item.itemId) localPreviews.delete(item.itemId);
   }
   emit({ ...state, items: state.items.filter((item) => item.projectId !== projectId) });
   persist();
@@ -268,6 +254,7 @@ async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan> {
       kind: item.kind,
       sizeBytes: item.sizeBytes,
       fileName: item.fileName.slice(0, 255),
+      capturedAt: item.capturedAt,
     });
     update(item.localId, {
       uploadId: plan.id,
@@ -321,14 +308,8 @@ async function send(item: QueuedUpload, token: string): Promise<UploadComplete |
 }
 
 async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
-  if (done.itemId !== null && item.projectId !== null) {
-    localPreviews.set(done.itemId, item.previewUri ?? item.uri);
-    previewProjects.set(done.itemId, item.projectId);
-    await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
-    void watchPreview(item.projectId, done.itemId);
-  } else {
-    await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
-  }
+  update(item.localId, { itemId: done.itemId });
+  if (done.itemId !== null && item.posterUri) localPreviews.set(done.itemId, item.posterUri);
   await Promise.allSettled(
     [...completed].map((listener) => listener(done, item.projectId, item.localId)),
   );
@@ -337,6 +318,7 @@ async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
 }
 
 onSignOut(clearUploads);
+onCacheCleared(clearUploads);
 onProjectDeleted((projectId) => {
   void removeProjectUploads(projectId);
 });

@@ -23,6 +23,7 @@ type Props = {
   lift: SharedValue<number>;
   hudFade: SharedValue<number>;
   info: boolean;
+  canInfo: boolean;
   onInfo: (value: boolean) => void;
   onZoomed: (value: boolean) => void;
   onDismiss: () => void;
@@ -41,6 +42,7 @@ export function Zoomable({
   lift,
   hudFade,
   info,
+  canInfo,
   onInfo,
   onZoomed,
   onDismiss,
@@ -58,6 +60,7 @@ export function Zoomable({
   const { openInfo, closeInfo, dismiss } = verticalGestures({
     height,
     info,
+    canInfo,
     zoomed,
     lift,
     dragY,

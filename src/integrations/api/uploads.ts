@@ -10,6 +10,7 @@ export type NewUpload = {
   kind: MediaKind;
   sizeBytes: number;
   fileName: string;
+  capturedAt?: string | null;
 };
 
 export function listUploads(

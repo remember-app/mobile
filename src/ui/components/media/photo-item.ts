@@ -7,11 +7,13 @@ import type { ViewerPhoto } from './viewer/types';
 
 export function tileOf(item: Item): Photo {
   const video = item.kind === 'video';
+  const poster = itemPreview(item, 'middle');
   return {
     id: item.id,
     projectId: item.projectId,
-    source: itemPreview(item, 'middle') ?? itemSource(item),
-    preview: itemPreview(item, 'middle'),
+    // Видео картинкой не нарисуешь: без постера плитка пустая, а не с битой ссылкой.
+    source: poster ?? (video ? null : itemSource(item)),
+    preview: poster,
     original: item.kind === 'photo' ? item.links.original : null,
     video,
     playbackUrl: video ? itemPlayback(item) : null,
@@ -25,11 +27,12 @@ export function tileOf(item: Item): Photo {
 
 export function viewerOf(item: Item): ViewerPhoto {
   const video = item.kind === 'video';
+  const poster = itemPreview(item, 'large') ?? itemPreview(item, 'middle');
   return {
     id: item.id,
     projectId: item.projectId,
-    source: item.links.compressed ?? item.links.original ?? itemPreview(item, 'large'),
-    thumb: itemPreview(item, 'small'),
+    source: video ? poster : (item.links.compressed ?? item.links.original ?? poster),
+    thumb: itemPreview(item, 'small') ?? poster,
     video,
     playbackUrl: video ? itemPlayback(item) : null,
     width: item.media.meta.dimensions?.width,

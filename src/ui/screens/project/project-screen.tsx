@@ -1,6 +1,6 @@
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { CopySlash, Tag } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
@@ -9,7 +9,6 @@ import {
   attachItems,
   cachedOriginal,
   detachItems,
-  dropReadyProjectPreviews,
   loadGallery,
   loadItem,
   loadLabels,
@@ -28,7 +27,6 @@ import {
   removeUpload,
   retryUpload,
   saveItemsToPhone,
-  setActiveProject,
   shareItem,
   shareText,
 } from '@/functionality';
@@ -98,7 +96,6 @@ export default function ProjectScreen() {
   const [labelMenu, setLabelMenu] = useState(false);
   const [activeLabelId, setActiveLabelId] = useState<LabelId | null>(null);
   const selection = useGallerySelection<string>();
-  const replacedUploads = useRef(new Set<string>());
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
   const progress = useSharedValue(1);
 
@@ -109,22 +106,11 @@ export default function ProjectScreen() {
     void loadMembers(projectId).catch(() => undefined);
     void loadMontages(projectId, true).catch(() => undefined);
     void loadMovies(projectId, true).catch(() => undefined);
-    return onUploaded(async (upload, project, localId) => {
+    return onUploaded(async (upload, project) => {
       if (project !== projectId || upload.itemId === null) return;
-      replacedUploads.current.add(localId);
       await loadItem(projectId, upload.itemId);
     });
   }, [projectId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setActiveProject(projectId);
-      return () => {
-        setActiveProject(null);
-        dropReadyProjectPreviews(projectId);
-      };
-    }, [projectId]),
-  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -141,64 +127,98 @@ export default function ProjectScreen() {
 
   const visibleItems = useMemo(() => filterItems(gallery.items, filters), [filters, gallery.items]);
 
+  // Загрузка и кадр — это одна запись списка: пока загрузка жива, она показывает свой кадр,
+  // поэтому место не меняется ни по ходу отправки, ни после неё.
   const photos = useMemo<Photo[]>(() => {
     const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
-    const files = visibleItems.map((item) => {
+    const filePhoto = (item: (typeof visibleItems)[number]): Photo => {
       const tile = tileOf(item);
       return {
-        at: itemDate(item).getTime(),
-        photo: {
-          ...tile,
-          source: localPreviewOf(item.id) ?? tile.source,
-          original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
-          playbackUrl: item.kind === 'video' ? (localPreviewOf(item.id) ?? tile.playbackUrl) : null,
-          selected: selecting ? selection.has(item.id) : undefined,
-          author:
-            filters.uploaderIds.length > 0
-              ? item.uploader?.name?.trim() || item.uploader?.username || null
-              : null,
-          authorAvatarUrl:
-            filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
-          labelColors:
-            filters.labelIds.length > 0 || labelMode
-              ? item.labelIds.flatMap((labelId) => {
-                  const tint = labelColors.get(labelId);
-                  return tint ? [tint] : [];
-                })
-              : undefined,
-        } satisfies Photo,
-      };
-    });
-    const sending = pending
-      .filter((upload) => !replacedUploads.current.has(upload.localId))
-      .map((upload) => {
-        const progress = progressOf(upload);
-        const captured = upload.capturedAt ? new Date(upload.capturedAt) : null;
-        return {
-          at: (captured ?? new Date()).getTime(),
-          photo: {
-            id: upload.localId,
-            source: upload.previewUri ?? upload.uri,
-            preview: upload.previewUri ?? upload.uri,
-            original: null,
-            video: upload.kind === 'video',
-            playbackUrl: upload.kind === 'video' ? upload.uri : null,
-            note:
-              upload.kind === 'video' && upload.durationSeconds !== null
-                ? duration(upload.durationSeconds)
-                : undefined,
-            upload: {
-              progress: progress.total > 0 ? progress.done / progress.total : 0,
-              failed: upload.status === 'failed',
-            },
-            capturedAt: captured,
-          } satisfies Photo,
-        };
+        ...tile,
+        source: localPreviewOf(item.id) ?? tile.source,
+        preview: localPreviewOf(item.id) ?? tile.preview,
+        original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
+        playbackUrl: item.kind === 'video' ? tile.playbackUrl : null,
+        selected: selecting ? selection.has(item.id) : undefined,
+        author:
+          filters.uploaderIds.length > 0
+            ? item.uploader?.name?.trim() || item.uploader?.username || null
+            : null,
+        authorAvatarUrl: filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
+        labelColors:
+          filters.labelIds.length > 0 || labelMode
+            ? item.labelIds.flatMap((labelId) => {
+                const tint = labelColors.get(labelId);
+                return tint ? [tint] : [];
+              })
+            : undefined,
+      } satisfies Photo;
+    };
+    const sendingPhoto = (upload: (typeof pending)[number], id: string): Photo => {
+      const progress = progressOf(upload);
+      const poster = upload.posterUri;
+      return {
+        id,
+        source: poster,
+        preview: poster,
+        original: null,
+        video: upload.kind === 'video',
+        playbackUrl: upload.kind === 'video' ? upload.uri : null,
+        note:
+          upload.kind === 'video' && upload.durationSeconds !== null
+            ? duration(upload.durationSeconds)
+            : undefined,
+        upload: {
+          progress: progress.total > 0 ? progress.done / progress.total : 0,
+          failed: upload.status === 'failed',
+        },
+        capturedAt: upload.capturedAt ? new Date(upload.capturedAt) : null,
+      } satisfies Photo;
+    };
+
+    const loaded = new Map(visibleItems.map((item) => [item.id, item] as const));
+    const existing = new Set(gallery.items.map((item) => item.id));
+    const occupied = new Set<string>();
+    const entries: { at: number; photo: Photo }[] = [];
+    for (const upload of pending) {
+      const item = upload.itemId === null ? undefined : loaded.get(upload.itemId);
+      if (item) {
+        occupied.add(item.id);
+        // Пока обработка не назвала настоящую дату, кадр стоит там, где стояла загрузка.
+        const date =
+          item.media.meta.at === null && upload.capturedAt
+            ? new Date(upload.capturedAt)
+            : itemDate(item);
+        entries.push({ at: date.getTime(), photo: filePhoto(item) });
+        continue;
+      }
+      if (upload.itemId !== null) {
+        occupied.add(upload.itemId);
+        if (existing.has(upload.itemId)) continue;
+      }
+      const captured = upload.capturedAt ? new Date(upload.capturedAt) : null;
+      entries.push({
+        at: (captured ?? new Date()).getTime(),
+        photo: sendingPhoto(upload, upload.itemId ?? upload.localId),
       });
-    return [...files, ...sending]
+    }
+    for (const item of visibleItems) {
+      if (occupied.has(item.id)) continue;
+      entries.push({ at: itemDate(item).getTime(), photo: filePhoto(item) });
+    }
+    return entries
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [filters, visibleItems, labelMode, labels.labels, pending, selecting, selection]);
+  }, [
+    filters,
+    gallery.items,
+    visibleItems,
+    labelMode,
+    labels.labels,
+    pending,
+    selecting,
+    selection,
+  ]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () => photos.map((photo) => ({ ...photo, source: photo.preview ?? photo.source })),
