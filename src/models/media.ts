@@ -95,7 +95,7 @@ export function itemSource(item: Item): string | null {
 }
 
 export function itemPreview(item: Item, size: PreviewSize): string | null {
-  return item.links.previews[size] ?? itemSource(item);
+  return item.links.previews[size] ?? (item.kind === 'video' ? null : itemSource(item));
 }
 
 export function itemPlayback(item: Item): string | null {
