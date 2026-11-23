@@ -9,6 +9,22 @@ import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
 
+const MAX_PARALLEL = 3;
+
+async function runPool<T>(
+  next: () => T | undefined,
+  run: (item: T) => Promise<void>,
+): Promise<void> {
+  const worker = async () => {
+    for (;;) {
+      const item = next();
+      if (item === undefined) return;
+      await run(item);
+    }
+  };
+  await Promise.all(Array.from({ length: MAX_PARALLEL }, worker));
+}
+
 type UploadFile = {
   projectId: ProjectId | null;
   uri: string;
@@ -125,29 +141,35 @@ export async function enqueueUploads(
     fingerprint?: string | null;
   })[],
 ): Promise<QueuedUpload[]> {
-  const added: QueuedUpload[] = [];
-  for (const file of files) {
-    const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const staged = await stage(file, localId);
-    added.push({
-      localId,
-      projectId: file.projectId,
-      uri: staged.uri,
-      posterUri: staged.posterUri,
-      fileName: file.fileName,
-      kind: file.kind,
-      sizeBytes: file.sizeBytes,
-      capturedAt: file.capturedAt ?? null,
-      durationSeconds: file.durationSeconds ?? null,
-      fingerprint: file.fingerprint ?? null,
-      itemId: null,
-      uploadId: null,
-      partBytes: null,
-      parts: {},
-      status: 'waiting',
-      error: null,
-    });
-  }
+  const added: QueuedUpload[] = new Array(files.length);
+  let cursor = 0;
+  await runPool(
+    () => (cursor < files.length ? cursor++ : undefined),
+    async (at) => {
+      const file = files[at];
+      if (!file) return;
+      const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const staged = await stage(file, localId);
+      added[at] = {
+        localId,
+        projectId: file.projectId,
+        uri: staged.uri,
+        posterUri: staged.posterUri,
+        fileName: file.fileName,
+        kind: file.kind,
+        sizeBytes: file.sizeBytes,
+        capturedAt: file.capturedAt ?? null,
+        durationSeconds: file.durationSeconds ?? null,
+        fingerprint: file.fingerprint ?? null,
+        itemId: null,
+        uploadId: null,
+        partBytes: null,
+        parts: {},
+        status: 'waiting',
+        error: null,
+      };
+    },
+  );
   emit({ ...state, items: [...state.items, ...added] });
   void pump();
   return added;
@@ -207,19 +229,25 @@ export async function pump(): Promise<void> {
   const token = currentToken();
   if (!token) return;
   emit({ ...state, sending: true });
+  const inFlight = new Set<string>();
   try {
-    for (let next = state.items.find((item) => item.status === 'waiting'); next; ) {
-      try {
-        const done = await send(next, token);
-        if (done) void finish(next, done);
-      } catch (error) {
-        update(next.localId, {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'upload failed',
-        });
-      }
-      next = state.items.find((item) => item.status === 'waiting');
-    }
+    await runPool(
+      () => state.items.find((item) => item.status === 'waiting' && !inFlight.has(item.localId)),
+      async (item) => {
+        inFlight.add(item.localId);
+        try {
+          const done = await send(item, token);
+          if (done) await finish(item, done);
+        } catch (error) {
+          update(item.localId, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'upload failed',
+          });
+        } finally {
+          inFlight.delete(item.localId);
+        }
+      },
+    );
   } finally {
     emit({ ...state, sending: false });
   }
