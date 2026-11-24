@@ -39,6 +39,7 @@ export function ProjectHeader({
   const [full, setFull] = useState(0);
   const [head, setHead] = useState(0);
   const side = space.s4 + 44 + space.s3;
+  const expanded = Math.max(0, full - space.s4 * 2);
   const widest = Math.max(0, full - side * 2);
   // рамка капсулы отнимает 2 px у текста — иначе он обрезается раньше максимума
   const collapsed = Math.min(head > 0 ? head : widest, widest) + 2;
@@ -53,7 +54,7 @@ export function ProjectHeader({
       };
     }
     return {
-      width: full - (full - collapsed) * p,
+      width: expanded - (expanded - collapsed) * p,
       height: 44 + (1 - p) * (space.s2 * 2 + card) + 2,
       borderRadius: radius.card + (radius.pill - radius.card) * p,
     };

@@ -3,6 +3,8 @@ import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
+  Extrapolation,
+  interpolate,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -42,6 +44,8 @@ type Props = {
   filterFields?: GalleryFilterFields;
   onFiltersChange: (value: GalleryFiltersValue) => void;
   primary?: GalleryPrimary;
+  keepPrimary?: boolean;
+  rightButtons?: number;
   selecting: boolean;
   canSelect: boolean;
   onSelectingToggle: () => void;
@@ -64,6 +68,8 @@ export function GalleryHud({
   filterFields,
   onFiltersChange,
   primary,
+  keepPrimary = false,
+  rightButtons = 1,
   selecting,
   canSelect,
   onSelectingToggle,
@@ -74,33 +80,47 @@ export function GalleryHud({
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const actions = useSharedValue(0);
+  const primaryFade = useSharedValue(1);
 
   useEffect(() => {
     actions.value = withTiming(selecting ? 1 : 0, { duration: 200 });
   }, [actions, selecting]);
 
+  useEffect(() => {
+    primaryFade.value = withTiming(filtering ? 0 : 1, { duration: 200 });
+  }, [filtering, primaryFade]);
+
+  const full = width - space.s4 * 2;
+  const narrow = Math.max(140, full - (60 + 60 * rightButtons));
   const primaryStyle = useAnimatedStyle(() => ({
-    opacity: 1 - chrome.value,
-    transform: [{ translateY: chrome.value * 96 }],
+    marginHorizontal: 'auto',
+    opacity: primaryFade.value * (keepPrimary ? 1 : 1 - chrome.value),
+    width: keepPrimary
+      ? interpolate(chrome.value, [0, 1], [full, narrow], Extrapolation.CLAMP)
+      : full,
+    transform: keepPrimary ? [] : [{ translateY: chrome.value * 96 }],
   }));
   const rightStyle = useAnimatedStyle(() => ({
     opacity: chrome.value,
     transform: [{ translateX: (1 - chrome.value) * 72 }],
   }));
 
-  const full = width - space.s4 * 2;
-
   return (
     <GalleryLayer hidden={hidden} reveal={reveal}>
       {primary ? (
         <ActionBar>
-          <Animated.View style={primaryStyle} pointerEvents={actionsOpen ? 'none' : 'auto'}>
+          <Animated.View
+            style={primaryStyle}
+            pointerEvents={filtering || (!keepPrimary && actionsOpen) ? 'none' : 'auto'}
+          >
             {primary.kind === 'single' ? (
               <Button
                 label={primary.label}
                 variant="primary"
+                wide={false}
                 disabled={primary.disabled}
                 onPress={primary.onPress}
+                style={styles.primaryBtn}
               />
             ) : (
               <View style={styles.pair}>
@@ -135,7 +155,7 @@ export function GalleryHud({
       ) : null}
       <View
         pointerEvents={actionsOpen ? 'box-none' : 'none'}
-        style={[styles.sideBar, { bottom: bottom + space.s3 }]}
+        style={[styles.sideBar, { bottom: bottom - space.s1 }]}
       >
         <FilterControl
           chrome={chrome}
@@ -169,6 +189,9 @@ export function GalleryHud({
 }
 
 const styles = StyleSheet.create({
+  primaryBtn: {
+    width: '100%',
+  },
   pair: {
     flexDirection: 'row',
     gap: space.s2,

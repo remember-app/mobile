@@ -475,6 +475,8 @@ export default function PickScreen() {
                   disabled: checking,
                   onPress: primaryPress,
                 },
+                keepPrimary: true,
+                rightButtons: 1,
                 selecting,
                 canSelect: true,
                 onSelectingChange: (next) => {

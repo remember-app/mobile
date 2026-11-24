@@ -24,6 +24,7 @@ const BOLD = new Set([16, 18, 24, 28, 36, 38, 48]);
 
 type AvatarProps = {
   name: string;
+  username?: string | null;
   size?: number;
   uri?: string | null;
   ring?: boolean;
@@ -36,9 +37,20 @@ type AvatarProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, style }: AvatarProps) {
+export function Avatar({
+  name,
+  username,
+  size = 42,
+  uri,
+  ring,
+  gone,
+  display,
+  stacked,
+  style,
+}: AvatarProps) {
   const { color } = useTheme();
   const styles = useStyles();
+  const face = name.trim() || username?.trim() || '';
   const circle = { width: size, height: size, borderRadius: size / 2 };
   const letterSize = display ? Math.round(size * 0.3) : (LETTERS[size] ?? Math.round(size / 3));
   return (
@@ -49,7 +61,7 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
         styles.avatar,
         circle,
         ring ? { boxShadow: `0 0 0 1.5px ${color.spark}` } : null,
-        { backgroundColor: gone ? color.surface : faceOf(name) },
+        { backgroundColor: gone ? color.surface : faceOf(face) },
         style,
       ]}
     >
@@ -80,7 +92,7 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
                 }
           }
         >
-          {initials(name)}
+          {initials(face)}
         </Text>
       )}
     </View>

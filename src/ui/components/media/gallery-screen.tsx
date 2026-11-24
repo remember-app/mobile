@@ -36,6 +36,8 @@ export function useGalleryScreen(
 
 export type GalleryHudConfig = {
   primary?: GalleryPrimary;
+  keepPrimary?: boolean;
+  rightButtons?: number;
   selectionDefault?: boolean;
   selecting?: boolean;
   canSelect?: boolean;
@@ -71,7 +73,7 @@ type Props = {
   onDelete?: (photo: ViewerPhoto) => void;
   loading?: ReactNode;
   empty?: ReactNode;
-  header?: ReactNode;
+  header?: ReactNode | ((progress: SharedValue<number>) => ReactNode);
   footer?: ReactNode;
   emptyMark?: boolean;
   hud?: GalleryHudConfig;
@@ -123,7 +125,7 @@ export function GalleryScreen({
   }, [viewer]);
   const chromeLayer = (
     <GalleryLayer hidden={viewer !== null && !closing} reveal={reveal}>
-      {header}
+      {typeof header === 'function' ? header(chrome.chrome) : header}
       {footer}
     </GalleryLayer>
   );
@@ -171,6 +173,8 @@ export function GalleryScreen({
           filterFields={hud.filterFields}
           onFiltersChange={hud.onFiltersChange}
           primary={hud.primary}
+          keepPrimary={hud.keepPrimary}
+          rightButtons={hud.rightButtons}
           selecting={chrome.selecting}
           canSelect={Boolean(hud.canSelect)}
           onSelectingToggle={chrome.toggleSelecting}

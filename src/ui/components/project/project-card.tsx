@@ -1,11 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ProjectCard as Project } from '@/models/project';
 import { dateRange } from '@/ui/format';
@@ -29,47 +23,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
   const frames = covers && covers.length > 0 ? covers : project.previewUrls;
   const total = frames.length;
   const empty = project.itemCount === 0;
-  const [sources, setSources] = useState<[string | null, string | null]>(() => [
-    frames[0] ?? null,
-    frames[1] ?? frames[0] ?? null,
-  ]);
-  const [active, setActive] = useState<0 | 1>(0);
-  const cursor = useRef(0);
-  const opacity0 = useSharedValue(1);
-  const opacity1 = useSharedValue(0);
-
-  useEffect(() => {
-    setSources([frames[0] ?? null, frames[1] ?? frames[0] ?? null]);
-    setActive(0);
-    cursor.current = 0;
-    opacity0.value = 1;
-    opacity1.value = 0;
-  }, [frames, opacity0, opacity1]);
-
-  useEffect(() => {
-    if (total < 2) return;
-    const timer = setInterval(
-      () => {
-        const next =
-          total > 1 ? (cursor.current + 1 + Math.floor(Math.random() * (total - 1))) % total : 0;
-        const target = active === 0 ? 1 : 0;
-        const shown = frames[next] ?? null;
-        setSources(([first, second]) => (target === 0 ? [shown, second] : [first, shown]));
-        const into = target === 0 ? opacity0 : opacity1;
-        const out = active === 0 ? opacity0 : opacity1;
-        into.value = 0;
-        into.value = withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) });
-        out.value = withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) });
-        setActive(target);
-        cursor.current = next;
-      },
-      5 * 60 * 60 * 1000,
-    );
-    return () => clearInterval(timer);
-  }, [active, frames, opacity0, opacity1, total]);
-
-  const style0 = useAnimatedStyle(() => ({ opacity: opacity0.value }));
-  const style1 = useAnimatedStyle(() => ({ opacity: opacity1.value }));
+  const source = frames[0] ?? null;
 
   return (
     <Animated.View style={scale}>
@@ -85,28 +39,16 @@ export function ProjectCard({ project, covers, onPress }: Props) {
         }}
         style={[styles.card, empty ? styles.cardEmpty : null]}
       >
-        <Animated.View style={[StyleSheet.absoluteFill, style0]} pointerEvents="none">
-          {sources[0] ? (
-            <Image
-              source={sources[0]}
-              group={project.id}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : null}
-        </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, style1]} pointerEvents="none">
-          {sources[1] ? (
-            <Image
-              source={sources[1]}
-              group={project.id}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : null}
-        </Animated.View>
+        {source ? (
+          <Image
+            source={source}
+            group={project.id}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            pointerEvents="none"
+          />
+        ) : null}
         {total > 0 ? (
           <>
             <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />

@@ -3,7 +3,6 @@ import { CopySlash, Tag } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   attachItems,
@@ -99,7 +98,6 @@ export default function ProjectScreen() {
   const [activeLabelId, setActiveLabelId] = useState<LabelId | null>(null);
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
-  const progress = useSharedValue(1);
 
   useEffect(() => {
     void loadProjects();
@@ -113,13 +111,6 @@ export default function ProjectScreen() {
       await loadItem(projectId, upload.itemId);
     });
   }, [projectId]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      progress.value = withTiming(0, { duration: 320 });
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [progress]);
 
   const pending = useMemo(
     () => uploads.items.filter((upload) => upload.projectId === projectId),
@@ -364,6 +355,7 @@ export default function ProjectScreen() {
               label: canCreate ? t('montage.create') : t('project.add'),
               onPress: canCreate ? create : pick,
             },
+            rightButtons: 3,
             canSelect: true,
             onSelectingChange: (next) => {
               setSelecting(next);
@@ -424,14 +416,14 @@ export default function ProjectScreen() {
                 }
           }
           info={mediaInfo}
-          header={
+          header={(chrome) => (
             <>
               <BlurBar edge="top">
                 <ProjectHeader
                   projectId={projectId}
                   title={title}
                   card={card}
-                  progress={progress}
+                  progress={chrome}
                   onBack={() => goBack(router)}
                   onMembers={() =>
                     router.navigate({ pathname: '/project/[id]/info', params: { id: projectId } })
@@ -475,7 +467,7 @@ export default function ProjectScreen() {
                 />
               ) : null}
             </>
-          }
+          )}
           loading={loading ? <GallerySkeleton top={top} bottom={bottom} /> : undefined}
           empty={
             gallery.status === 'error' ? (

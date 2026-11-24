@@ -29,7 +29,7 @@ export function Person({
 }) {
   return (
     <View style={[styles.person, style]}>
-      <Avatar name={name} size={size} uri={uri} />
+      <Avatar name={name} username={username} size={size} uri={uri} />
       <View style={styles.words}>
         <View style={styles.nameRow}>
           <Text

@@ -47,14 +47,18 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let live = true;
-    const missing = cards.filter((card) => card.previewUrls.length === 0);
-    void Promise.all(
-      missing.map(async (card) => [card.id, await projectCoverFrames(card.id)] as const),
-    ).then((entries) => {
-      if (live) setCovers(Object.fromEntries(entries));
-    });
+    const load = () => {
+      void Promise.all(
+        cards.map(async (card) => [card.id, await projectCoverFrames(card.id)] as const),
+      ).then((entries) => {
+        if (live) setCovers((was) => ({ ...was, ...Object.fromEntries(entries) }));
+      });
+    };
+    load();
+    const timer = setInterval(load, 10 * 60 * 1000);
     return () => {
       live = false;
+      clearInterval(timer);
     };
   }, [cards]);
 

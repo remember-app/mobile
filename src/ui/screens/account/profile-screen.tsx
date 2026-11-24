@@ -334,7 +334,12 @@ export default function ProfileScreen() {
             onPress={() => void pickAvatar()}
             style={styles.avatarEdit}
           >
-            <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
+            <Avatar
+              name={account.name ?? ''}
+              username={account.username}
+              size={72}
+              uri={avatar.url}
+            />
             <View
               pointerEvents="none"
               style={[
