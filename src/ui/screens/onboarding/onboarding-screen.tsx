@@ -385,23 +385,27 @@ export default function OnboardingScreen() {
       <StatusBar style="light" />
       <AnimatedPressable onPress={togglePhoto} style={[styles.photo, photoStyle]}>
         {slide ? (
-          <Animated.Image
+          <Animated.View
             key={slide.mediaId}
-            source={{ uri: slide.url }}
-            resizeMode="cover"
+            style={StyleSheet.absoluteFill}
             entering={FadeIn.duration(1000)}
             exiting={FadeOut.duration(800)}
-            style={[StyleSheet.absoluteFill, zoomStyle]}
-          />
-        ) : null}
-        <Animated.View style={[styles.scrim, scrimStyle]} />
-        {caption ? (
-          <Animated.View style={[styles.caption, captionStyle]} pointerEvents="none">
-            <Text role="displaySm" tone="onFill" style={styles.captionText}>
-              {caption}
-            </Text>
+          >
+            <Animated.Image
+              source={{ uri: slide.url }}
+              resizeMode="cover"
+              style={[StyleSheet.absoluteFill, zoomStyle]}
+            />
+            {caption ? (
+              <Animated.View style={[styles.caption, captionStyle]} pointerEvents="none">
+                <Text role="displaySm" tone="onFill" style={styles.captionText}>
+                  {caption}
+                </Text>
+              </Animated.View>
+            ) : null}
           </Animated.View>
         ) : null}
+        <Animated.View style={[styles.scrim, scrimStyle]} />
         <Animated.View style={[styles.brand, brandStyle]}>
           <Text role="heroSm" tone="onFill">
             Remember
@@ -543,6 +547,7 @@ const styles = StyleSheet.create({
     left: space.s4,
   },
   captionText: {
+    textAlign: 'justify',
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
