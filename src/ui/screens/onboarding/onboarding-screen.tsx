@@ -17,7 +17,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Path, Svg } from 'react-native-svg';
 
 import {
   acceptInvite,
@@ -44,59 +43,9 @@ import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
 const SLIDE_MS = 6000;
-const STEP_MS = 380;
+const STEP_MS = 520;
 type Phase = 'providers' | 'email' | 'invite' | 'code' | 'username';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function GoogleGlyph({
-  size = 20,
-}: {
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-  fill?: string;
-}) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 48 48">
-      <Path
-        fill="#EA4335"
-        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-      />
-      <Path
-        fill="#4285F4"
-        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-      />
-      <Path
-        fill="#FBBC05"
-        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-      />
-      <Path
-        fill="#34A853"
-        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-      />
-    </Svg>
-  );
-}
-
-function AppleGlyph({
-  size = 20,
-  color = '#FFFFFF',
-}: {
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-  fill?: string;
-}) {
-  const side = size * 1.3;
-  return (
-    <Svg width={side} height={side} viewBox="0 0 24 24">
-      <Path
-        fill={color}
-        d="M17.05 12.54c-.02-2.2 1.8-3.27 1.88-3.32-1.03-1.5-2.63-1.71-3.2-1.73-1.36-.14-2.66.8-3.35.8-.7 0-1.76-.78-2.9-.76-1.49.02-2.87.87-3.64 2.2-1.55 2.69-.4 6.67 1.11 8.86.74 1.08 1.62 2.29 2.78 2.25 1.12-.05 1.54-.72 2.9-.72 1.35 0 1.74.72 2.92.7 1.21-.02 1.98-1.1 2.72-2.19.86-1.25 1.21-2.46 1.23-2.53-.03-.01-2.36-.91-2.4-3.66zM14.9 4.9c.62-.75 1.04-1.8.92-2.84-.9.04-1.99.6-2.64 1.35-.58.67-1.09 1.74-.96 2.77 1 .08 2.02-.51 2.68-1.28z"
-      />
-    </Svg>
-  );
-}
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -120,6 +69,8 @@ export default function OnboardingScreen() {
   const input = useRef<TextInputRef>(null);
   const codeInput = useRef<TextInputRef>(null);
   const pending = useRef<(() => void | Promise<void>) | null>(null);
+  const touched = useRef(false);
+  const seenStep = useRef(false);
   const keyboard = useAnimatedKeyboard();
   const media = useSystemMedia();
   const slides = media.filter((item) => item.name.startsWith('onboarding-'));
@@ -134,9 +85,24 @@ export default function OnboardingScreen() {
   useEffect(() => {
     step.value = withTiming(stepIndex, {
       duration: stepDuration.current,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.inOut(Easing.cubic),
     });
   }, [step, stepIndex]);
+
+  useEffect(() => {
+    if (!seenStep.current) {
+      seenStep.current = true;
+      return;
+    }
+    if (stepIndex !== 0) touched.current = true;
+  }, [stepIndex]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!touched.current) setStepIndex(1);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (stepIndex !== 2) {
@@ -421,7 +387,7 @@ export default function OnboardingScreen() {
           onLayout={(event) => {
             actionSize.value = withTiming(event.nativeEvent.layout.height, {
               duration: STEP_MS,
-              easing: Easing.out(Easing.cubic),
+              easing: Easing.inOut(Easing.cubic),
             });
           }}
         >
@@ -502,30 +468,12 @@ export default function OnboardingScreen() {
               autoCorrect={false}
             />
           ) : (
-            <>
-              <View style={styles.providers}>
-                <Button
-                  label="Google"
-                  variant="secondary"
-                  icon={GoogleGlyph}
-                  wide={false}
-                  style={styles.provider}
-                />
-                <Button
-                  label="Apple"
-                  variant="secondary"
-                  icon={AppleGlyph}
-                  wide={false}
-                  style={styles.provider}
-                />
-              </View>
-              <Button
-                label={t('onboarding.email.label')}
-                variant="primary"
-                icon={Mail}
-                onPress={enterEmail}
-              />
-            </>
+            <Button
+              label={t('onboarding.email.label')}
+              variant="primary"
+              icon={Mail}
+              onPress={enterEmail}
+            />
           )}
           {error ? (
             <Text role="hint" tone="danger">
@@ -584,12 +532,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.s3,
-  },
-  providers: {
-    flexDirection: 'row',
-    gap: space.s3,
-  },
-  provider: {
-    flex: 1,
   },
 });

@@ -7,7 +7,7 @@ import {
   listContacts,
 } from '@/integrations/api';
 import { readCache, writeCache } from '@/integrations/files/cache';
-import type { Contact, PublicUser } from '@/models';
+import { type Contact, displayName, type PublicUser } from '@/models';
 import type { UserId } from '@/types/id';
 
 const CACHE = 'contacts-v2';
@@ -54,8 +54,9 @@ function persist(): void {
 function order(contacts: Contact[]): Contact[] {
   return [...contacts].sort(
     (left, right) =>
-      (left.name ?? left.username ?? '').localeCompare(right.name ?? right.username ?? '') ||
-      left.userId.localeCompare(right.userId),
+      displayName(left.name, left.username).localeCompare(
+        displayName(right.name, right.username),
+      ) || left.userId.localeCompare(right.userId),
   );
 }
 

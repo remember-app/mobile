@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { displayName } from '@/models';
 import { faceOf, font, themed, useTheme } from '@/ui/theme';
 
 import { Image } from './image';
@@ -23,17 +25,13 @@ const LETTERS: Record<number, number> = {
 const BOLD = new Set([16, 18, 24, 28, 36, 38, 48]);
 
 type AvatarProps = {
-  name: string;
+  name: string | null | undefined;
   username?: string | null;
   size?: number;
   uri?: string | null;
   ring?: boolean;
   gone?: boolean;
   display?: boolean;
-  stacked?: {
-    letters: number;
-    covered: number;
-  };
   style?: StyleProp<ViewStyle>;
 };
 
@@ -45,12 +43,15 @@ export function Avatar({
   ring,
   gone,
   display,
-  stacked,
   style,
 }: AvatarProps) {
   const { color } = useTheme();
   const styles = useStyles();
-  const face = name.trim() || username?.trim() || '';
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+  const face = displayName(name, username);
   const circle = { width: size, height: size, borderRadius: size / 2 };
   const letterSize = display ? Math.round(size * 0.3) : (LETTERS[size] ?? Math.round(size / 3));
   return (
@@ -65,32 +66,25 @@ export function Avatar({
         style,
       ]}
     >
-      {uri ? (
+      {uri && !failed ? (
         <Image
           source={{ uri }}
           scope="avatars"
           contentFit="cover"
           style={[StyleSheet.absoluteFill, circle]}
+          onError={() => setFailed(true)}
         />
       ) : (
         <Text
           role={display ? 'subtitleDisplay' : 'row'}
           tone={gone ? 'faint' : 'onFill'}
           maxFontSizeMultiplier={1}
-          style={
-            stacked
-              ? {
-                  fontSize: stacked.letters,
-                  fontFamily: font.bold,
-                  paddingRight: stacked.covered,
-                }
-              : {
-                  fontSize: letterSize,
-                  lineHeight: Math.round(letterSize * 1.15),
-                  ...(!display && BOLD.has(size) ? { fontFamily: font.bold } : null),
-                  letterSpacing: 0,
-                }
-          }
+          style={{
+            fontSize: letterSize,
+            lineHeight: Math.round(letterSize * 1.15),
+            ...(!display && BOLD.has(size) ? { fontFamily: font.bold } : null),
+            letterSpacing: 0,
+          }}
         >
           {initials(face)}
         </Text>
@@ -122,7 +116,8 @@ const STACK = {
 } as const;
 
 export type AvatarFace = {
-  name: string;
+  name: string | null | undefined;
+  username?: string | null;
   uri?: string | null;
 };
 
@@ -152,16 +147,15 @@ export function AvatarStack({
   const over = { marginLeft: -overlap };
   const shown = faces.slice(0, limit);
   const rest = shown.length === limit ? Math.max(0, total - shown.length) : 0;
-  const last = rest > 0 ? -1 : shown.length - 1;
   return (
     <View style={styles.row}>
       {shown.map((face, i) => (
         <Avatar
           key={`${face.name}-${i}`}
           name={face.name}
+          username={face.username}
           uri={face.uri}
           size={size}
-          stacked={{ letters, covered: i === last || apart ? 0 : overlap + halo }}
           style={[collar, i === 0 ? null : over]}
         />
       ))}

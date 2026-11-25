@@ -114,8 +114,8 @@ export default function ContactsScreen() {
                 }
               >
                 <Person
-                  name={contact.name ?? ''}
-                  username={contact.username ?? ''}
+                  name={contact.name}
+                  username={contact.username}
                   uri={null}
                   style={styles.contact}
                 />
@@ -139,8 +139,8 @@ export default function ContactsScreen() {
                   onAction={() => void addSuggestion(suggestion.username)}
                 >
                   <Person
-                    name={suggestion.name ?? ''}
-                    username={suggestion.username ?? ''}
+                    name={suggestion.name}
+                    username={suggestion.username}
                     uri={suggestion.avatarUrl}
                     style={styles.contact}
                   />

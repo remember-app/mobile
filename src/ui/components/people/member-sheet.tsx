@@ -73,8 +73,8 @@ export function MemberSheet({
         <View style={styles.body}>
           <View style={styles.profile}>
             <Person
-              name={member.name ?? ''}
-              username={member.username ?? ''}
+              name={member.name}
+              username={member.username}
               size={72}
               uri={member.avatarUrl}
               heading

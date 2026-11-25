@@ -213,7 +213,8 @@ export default function MovieScreen() {
           {member ? (
             <View style={styles.creator}>
               <Avatar
-                name={member.name ?? member.username ?? ''}
+                name={member.name}
+                username={member.username}
                 size={32}
                 uri={member.avatarUrl}
               />

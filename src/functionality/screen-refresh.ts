@@ -32,15 +32,15 @@ export function refreshScreen(pathname: string): void {
   once('session', () => refreshSession());
 
   if (pathname === '/' || pathname === '/home' || pathname === '/create') {
-    once('projects', () => loadProjects());
+    once('projects', () => loadProjects(true));
     once('avatar', () => loadAvatar());
   }
   if (pathname === '/create' || pathname.startsWith('/contacts')) {
-    once('contacts', () => loadContacts());
+    once('contacts', () => loadContacts(true));
   }
   if (pathname.startsWith('/profile')) {
     once('avatar', () => loadAvatar());
-    once('contacts', () => loadContacts());
+    once('contacts', () => loadContacts(true));
     once('own-songs', () => loadOwnSongs());
   }
   if (pathname === '/songs') {
@@ -55,11 +55,11 @@ export function refreshScreen(pathname: string): void {
   if (!projectId) return;
   const id = projectId as ProjectId;
 
-  once('projects', () => loadProjects());
+  once('projects', () => loadProjects(true));
   once('avatar', () => loadAvatar());
   once(`gallery:${id}`, () => loadGallery(id, true));
   once(`labels:${id}`, () => loadLabels(id));
-  once(`members:${id}`, () => loadMembers(id));
+  once(`members:${id}`, () => loadMembers(id, true));
   once(`montages:${id}`, () => loadMontages(id, true));
   once(`movies:${id}`, () => loadMovies(id, true));
   once(`songs:${id}`, () => loadProjectSongs(id));

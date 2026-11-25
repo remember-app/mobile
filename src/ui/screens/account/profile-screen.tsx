@@ -186,8 +186,8 @@ export default function ProfileScreen() {
       ) : null}
       <Card label={t('profile.edit')} onPress={openEdit} style={[styles.pad, styles.person]}>
         <Person
-          name={account.name ?? ''}
-          username={account.username ?? ''}
+          name={account.name}
+          username={account.username}
           size={64}
           heading
           note={account.email ?? ''}
@@ -334,12 +334,7 @@ export default function ProfileScreen() {
             onPress={() => void pickAvatar()}
             style={styles.avatarEdit}
           >
-            <Avatar
-              name={account.name ?? ''}
-              username={account.username}
-              size={72}
-              uri={avatar.url}
-            />
+            <Avatar name={account.name} username={account.username} size={72} uri={avatar.url} />
             <View
               pointerEvents="none"
               style={[

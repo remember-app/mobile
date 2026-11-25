@@ -36,8 +36,8 @@ export function MemberList({
   const row = (member: Member) => {
     const face = (
       <Person
-        name={member.name ?? ''}
-        username={member.username ?? ''}
+        name={member.name}
+        username={member.username}
         size={44}
         uri={member.avatarUrl}
         accent={isSelf(member)}

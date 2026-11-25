@@ -13,6 +13,7 @@ export type Photo = {
   id: string;
   projectId?: string | null;
   source: ImageSource | string | null;
+  viewerSource?: ImageSource | string | null;
   preview?: ImageSource | string | null;
   original?: string | null;
   video?: boolean;
@@ -23,6 +24,7 @@ export type Photo = {
   selected?: boolean;
   required?: boolean;
   accent?: boolean;
+  frameColor?: string;
   note?: string;
   author?: string | null;
   authorAvatarUrl?: string | null;
@@ -175,6 +177,7 @@ export function PhotoGrid({
                   onRequire={onRequire ? () => onRequire(index) : undefined}
                   emptyMark={emptyMark}
                   accent={photo.accent}
+                  frameColor={photo.frameColor}
                   note={photo.note}
                   author={photo.author}
                   authorAvatarUrl={photo.authorAvatarUrl}

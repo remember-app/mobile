@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addMember, createProject, loadContacts, refreshSession } from '@/functionality';
+import { displayName } from '@/models';
 import { goBack } from '@/ui/back';
 import { DescriptionField } from '@/ui/components/forms/description-field';
 import { EventDates } from '@/ui/components/forms/event-dates';
@@ -72,7 +73,7 @@ export default function CreateScreen() {
       <ContactStrip
         contacts={contacts.map((contact) => ({
           id: contact.userId,
-          name: contact.name ?? contact.username ?? '',
+          name: displayName(contact.name, contact.username),
           avatarUrl: null,
         }))}
         selected={invited}

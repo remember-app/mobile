@@ -1,13 +1,12 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { CopySlash, Tag } from 'lucide-react-native';
+import { Check, CopySlash } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  attachItems,
   cachedOriginal,
-  detachItems,
+  ensureOriginal,
   loadGallery,
   loadItem,
   loadLabels,
@@ -21,6 +20,7 @@ import {
   nearDuplicateExtras,
   onUploaded,
   progressOf,
+  refreshGalleryAll,
   refreshItem,
   removeItem,
   removeItems,
@@ -31,13 +31,12 @@ import {
   shareItem,
   shareText,
 } from '@/functionality';
-import { canCreateMontage, itemDate } from '@/models';
-import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
+import { canCreateMontage, displayName, itemDate } from '@/models';
+import type { ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import { GallerySkeleton } from '@/ui/components/feedback/skeletons';
 import { filterItems } from '@/ui/components/gallery/gallery-filters';
-import { LabelMenu } from '@/ui/components/gallery/label-menu';
 import { SelectionActions } from '@/ui/components/gallery/selection-actions';
 import { SelectionBar } from '@/ui/components/gallery/selection-bar';
 import { useGalleryFilters } from '@/ui/components/gallery/use-gallery-filters';
@@ -92,10 +91,9 @@ export default function ProjectScreen() {
     onIndex: onViewerIndex,
   } = useGalleryViewer();
   const [selecting, setSelecting] = useState(false);
+  const [duplicatesOn, setDuplicatesOn] = useState(false);
   const { filters, setFilters } = useGalleryFilters();
-  const [labelMode, setLabelMode] = useState(false);
-  const [labelMenu, setLabelMenu] = useState(false);
-  const [activeLabelId, setActiveLabelId] = useState<LabelId | null>(null);
+  const [originals, setOriginals] = useState<Record<string, string>>({});
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
 
@@ -130,16 +128,18 @@ export default function ProjectScreen() {
         ...tile,
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
-        original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
+        viewerSource:
+          item.kind === 'photo' ? (item.links.compressed ?? item.links.original) : undefined,
+        original: item.kind === 'photo' ? (originals[item.id] ?? cachedOriginal(item)) : null,
         playbackUrl: item.kind === 'video' ? (localPlaybackOf(item.id) ?? tile.playbackUrl) : null,
         selected: selecting ? selection.has(item.id) : undefined,
         author:
           filters.uploaderIds.length > 0
-            ? item.uploader?.name?.trim() || item.uploader?.username || null
+            ? displayName(item.uploader?.name, item.uploader?.username) || null
             : null,
         authorAvatarUrl: filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
         labelColors:
-          filters.labelIds.length > 0 || labelMode
+          filters.labelIds.length > 0
             ? item.labelIds.flatMap((labelId) => {
                 const tint = labelColors.get(labelId);
                 return tint ? [tint] : [];
@@ -205,8 +205,8 @@ export default function ProjectScreen() {
   }, [
     filters,
     gallery.items,
+    originals,
     visibleItems,
-    labelMode,
     labels.labels,
     pending,
     selecting,
@@ -214,9 +214,27 @@ export default function ProjectScreen() {
   ]);
 
   const viewerPhotos = useMemo<Photo[]>(
-    () => photos.map((photo) => ({ ...photo, source: photo.preview ?? photo.source })),
+    () =>
+      photos.map((photo) => ({
+        ...photo,
+        source: photo.viewerSource ?? photo.preview ?? photo.source,
+      })),
     [photos],
   );
+
+  useEffect(() => {
+    const photo = open === null ? null : photos[open.index];
+    if (!photo || photo.video || photo.upload) return;
+    const item = gallery.items.find((candidate) => candidate.id === photo.id);
+    if (item?.kind !== 'photo' || !item.links.original || originals[item.id]) return;
+    let live = true;
+    void ensureOriginal(item).then((local) => {
+      if (live && local) setOriginals((was) => ({ ...was, [item.id]: local }));
+    });
+    return () => {
+      live = false;
+    };
+  }, [gallery.items, open, originals, photos]);
 
   if (!project && projects.status !== 'loading') {
     return <Missing title={t('project.title')} message={t('project.notFound')} />;
@@ -236,30 +254,28 @@ export default function ProjectScreen() {
   const toggle = (id: string) => {
     selection.toggle(id);
   };
-  const activeLabel = labels.labels.find((label) => label.id === activeLabelId) ?? labels.labels[0];
-  const toggleLabels = () => {
-    if (labelMode) {
-      setLabelMode(false);
-      setLabelMenu(false);
+  const duplicateIds = nearDuplicateExtras(visibleItems);
+  const allSelected =
+    gallery.items.length > 0 && gallery.items.every((item) => selection.has(item.id));
+
+  const toggleDuplicates = () => {
+    if (duplicatesOn) {
+      setDuplicatesOn(false);
+      selection.clear();
       return;
     }
-    if (labels.labels.length === 0) return;
-    setActiveLabelId((was) => was ?? labels.labels[0]?.id ?? null);
-    setLabelMode(true);
+    setDuplicatesOn(true);
+    selection.replace(duplicateIds);
   };
-  const chooseLabel = (labelId: LabelId) => {
-    setActiveLabelId(labelId);
-    setLabelMenu(false);
-  };
-  const toggleLabel = (itemId: ProjectItemId, labelId: LabelId) => {
-    const item = gallery.items.find((entry) => entry.id === itemId);
-    const has = item?.labelIds.includes(labelId) ?? false;
-    void (has
-      ? detachItems(projectId, labelId, [itemId])
-      : attachItems(projectId, labelId, [itemId]));
-  };
-  const selectDuplicates = () => {
-    selection.replace(nearDuplicateExtras(visibleItems));
+  const toggleAll = () => {
+    setDuplicatesOn(false);
+    if (allSelected) {
+      selection.clear();
+      return;
+    }
+    void refreshGalleryAll(projectId).then((items) => {
+      selection.replace(items.map((item) => item.id));
+    });
   };
   const chosen = () => gallery.items.filter((item) => selection.has(item.id));
   const saveSelected = async () => {
@@ -338,10 +354,6 @@ export default function ProjectScreen() {
               ? (index) => {
                   const photo = photos[index];
                   if (!photo || photo.upload) return;
-                  if (labelMode && activeLabel) {
-                    toggleLabel(photo.id as ProjectItemId, activeLabel.id);
-                    return;
-                  }
                   toggle(photo.id);
                 }
               : undefined
@@ -361,8 +373,7 @@ export default function ProjectScreen() {
               setSelecting(next);
               if (!next) {
                 selection.clear();
-                setLabelMode(false);
-                setLabelMenu(false);
+                setDuplicatesOn(false);
               }
             },
             filters,
@@ -373,35 +384,34 @@ export default function ProjectScreen() {
             selectionTools: (
               <>
                 <IconButton
+                  icon={Check}
+                  label={t('picker.selectAll')}
+                  tone="surface"
+                  size={52}
+                  on={allSelected}
+                  onPress={toggleAll}
+                />
+                <IconButton
                   icon={CopySlash}
                   label={t('action.removeDuplicates')}
                   tone="surface"
                   size={52}
-                  onPress={selectDuplicates}
-                />
-                <IconButton
-                  icon={Tag}
-                  label={t('labels.title')}
-                  tone="surface"
-                  size={52}
-                  on={labelMode}
-                  disabled={labels.labels.length === 0}
-                  onPress={toggleLabels}
+                  on={duplicatesOn}
+                  onPress={toggleDuplicates}
                 />
               </>
             ),
-            renderSelectionActions: (progress) =>
-              labelMode ? null : (
-                <SelectionActions
-                  progress={progress}
-                  bottom={insets.bottom + space.s3 + 52 + space.s2}
-                  onSave={saveSelected}
-                  onDelete={deleteSelected}
-                  onShare={shareSelected}
-                />
-              ),
+            renderSelectionActions: (progress) => (
+              <SelectionActions
+                progress={progress}
+                bottom={insets.bottom + space.s3 + 52 + space.s2}
+                onSave={saveSelected}
+                onDelete={deleteSelected}
+                onShare={shareSelected}
+              />
+            ),
           }}
-          author={account?.name ?? undefined}
+          author={displayName(account?.name, account?.username) || undefined}
           authorAvatarUrl={avatar.url}
           onDelete={
             selecting
@@ -449,22 +459,7 @@ export default function ProjectScreen() {
                 />
               ) : null}
               {selecting ? (
-                <SelectionBar
-                  top={insets.top + 52}
-                  labelMode={labelMode}
-                  activeLabel={activeLabel}
-                  selectedCount={selection.ids.size}
-                  onMenu={() => setLabelMenu((was) => !was)}
-                />
-              ) : null}
-              {selecting && labelMode && labelMenu && activeLabel ? (
-                <LabelMenu
-                  top={insets.top + 52 + 48}
-                  labels={labels.labels}
-                  activeLabel={activeLabel}
-                  onChoose={chooseLabel}
-                  onClose={() => setLabelMenu(false)}
-                />
+                <SelectionBar top={insets.top + 52} selectedCount={selection.ids.size} />
               ) : null}
             </>
           )}

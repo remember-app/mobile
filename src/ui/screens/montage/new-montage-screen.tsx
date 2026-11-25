@@ -24,6 +24,7 @@ import {
   loadProjectSongs,
   loadProjects,
   previewMontage,
+  refreshGalleryAll,
   refreshSession,
   updateProject,
 } from '@/functionality';
@@ -124,6 +125,10 @@ export default function NewMontageScreen() {
     void loadLabels(projectId).catch(() => undefined);
     void loadMembers(projectId).catch(() => undefined);
   }, [projectId]);
+
+  useEffect(() => {
+    if (index === 2) void refreshGalleryAll(projectId);
+  }, [index, projectId]);
 
   const filtered = isFiltered(filters);
 
@@ -370,7 +375,11 @@ export default function NewMontageScreen() {
   const canNext = index < STEPS - 1 || !blocked;
 
   const emptyShots = index === 2 && draft.includeItemIds.length === 0;
-  const selectAllShots = () => change({ includeItemIds: gallery.items.map((item) => item.id) });
+  const selectAllShots = () => {
+    void refreshGalleryAll(projectId).then((items) => {
+      change({ includeItemIds: items.map((item) => item.id) });
+    });
+  };
   const next = () => {
     if (index === STEPS - 1) {
       void submit();

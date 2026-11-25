@@ -31,6 +31,13 @@ export type PublicUser = {
   avatarUrl: string | null;
 };
 
+export function displayName(
+  name: string | null | undefined,
+  username: string | null | undefined,
+): string {
+  return name?.trim() || username?.trim() || '';
+}
+
 export type Account = User & {
   consumables: Consumable;
 };

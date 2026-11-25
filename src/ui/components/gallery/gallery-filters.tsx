@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import type { Item, Label, MediaKind, Member } from '@/models';
+import { displayName, type Item, type Label, type MediaKind, type Member } from '@/models';
 import type { LabelId, UserId } from '@/types/id';
 import { IconButton } from '@/ui/kit/controls/button';
 import { Avatar } from '@/ui/kit/primitives/avatar';
@@ -164,20 +164,17 @@ export function GalleryFiltersPanel({
         <ScrollRow label={t('filter.uploader')}>
           {members.map((member) => {
             const on = value.uploaderIds.includes(member.userId);
+            const label = displayName(member.name, member.username);
             return (
               <Pressable
                 key={member.userId}
                 accessibilityRole="togglebutton"
-                accessibilityLabel={member.name?.trim() || member.username || ''}
+                accessibilityLabel={label}
                 accessibilityState={{ checked: on }}
                 onPress={() => set('uploaderIds', toggle(value.uploaderIds, member.userId))}
                 style={[styles.avatarCell, { borderColor: on ? color.paper : 'transparent' }]}
               >
-                <Avatar
-                  name={member.name?.trim() || member.username || ''}
-                  size={36}
-                  uri={member.avatarUrl}
-                />
+                <Avatar name={label} size={36} uri={member.avatarUrl} />
               </Pressable>
             );
           })}

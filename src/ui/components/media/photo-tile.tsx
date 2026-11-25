@@ -23,6 +23,7 @@ type Props = {
   onRequire?: () => void;
   emptyMark?: boolean;
   accent?: boolean;
+  frameColor?: string;
   note?: string;
   author?: string | null;
   authorAvatarUrl?: string | null;
@@ -41,6 +42,7 @@ export function PhotoTile({
   onRequire,
   emptyMark = true,
   accent,
+  frameColor,
   note,
   author,
   authorAvatarUrl,
@@ -136,10 +138,14 @@ export function PhotoTile({
           <Avatar name={author} size={24} uri={authorAvatarUrl} />
         </View>
       ) : null}
-      {accent ? (
+      {accent || frameColor ? (
         <View
           pointerEvents="none"
-          style={[StyleSheet.absoluteFill, styles.frame, { borderColor: theme.color.accent }]}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.frame,
+            { borderColor: frameColor ?? theme.color.accent },
+          ]}
         />
       ) : null}
     </Pressable>

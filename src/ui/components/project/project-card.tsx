@@ -20,10 +20,10 @@ export function ProjectCard({ project, covers, onPress }: Props) {
   const press = useSharedValue(1);
   const scale = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
 
-  const frames = covers && covers.length > 0 ? covers : project.previewUrls;
+  const frames = covers ?? [];
   const total = frames.length;
-  const empty = project.itemCount === 0;
   const source = frames[0] ?? null;
+  const empty = !source;
 
   return (
     <Animated.View style={scale}>
@@ -54,7 +54,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
             <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />
             <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
           </>
-        ) : empty ? (
+        ) : (
           <Image
             source={require('../../../../assets/logo/logo-heart-2-outline.png')}
             style={styles.emptyMark}
@@ -62,7 +62,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
             cachePolicy="memory"
             pointerEvents="none"
           />
-        ) : null}
+        )}
         <Text
           role="title"
           tone={total > 0 ? 'onFill' : 'paper'}
@@ -74,7 +74,8 @@ export function ProjectCard({ project, covers, onPress }: Props) {
         <View style={styles.foot}>
           <AvatarStack
             faces={project.members.map((member) => ({
-              name: member.name?.trim() || member.username || '',
+              name: member.name,
+              username: member.username,
               uri: member.avatarUrl,
             }))}
             total={project.memberCount}

@@ -16,8 +16,8 @@ export function Person({
   style,
   nameStyle,
 }: {
-  name: string;
-  username: string;
+  name: string | null | undefined;
+  username: string | null | undefined;
   size?: number;
   heading?: boolean;
   note?: string;
@@ -27,9 +27,12 @@ export function Person({
   style?: StyleProp<ViewStyle>;
   nameStyle?: StyleProp<TextStyle>;
 }) {
+  const own = name?.trim() ?? '';
+  const nick = username?.trim() ?? '';
+  const title = own || (nick ? `@${nick}` : '');
   return (
     <View style={[styles.person, style]}>
-      <Avatar name={name} username={username} size={size} uri={uri} />
+      <Avatar name={own} username={nick} size={size} uri={uri} />
       <View style={styles.words}>
         <View style={styles.nameRow}>
           <Text
@@ -38,11 +41,13 @@ export function Person({
             numberOfLines={1}
             style={[styles.name, nameStyle]}
           >
-            {name}
+            {title}
           </Text>
-          <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-            {`@${username}`}
-          </Text>
+          {own && nick ? (
+            <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+              {`@${nick}`}
+            </Text>
+          ) : null}
         </View>
         {note ? (
           <Text role="noteSm" tone="faint">

@@ -126,7 +126,7 @@ export function Zoomable({
               transition={100}
               cachePolicy="memory-disk"
             />
-            {hd && zoomed ? (
+            {hd ? (
               <Image
                 source={hd}
                 group={group}

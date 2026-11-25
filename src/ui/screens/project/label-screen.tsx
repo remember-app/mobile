@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadLabels, loadMembers } from '@/functionality';
+import { displayName } from '@/models';
 import type { LabelId, ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { LabelMark } from '@/ui/components/common/label';
@@ -37,7 +38,7 @@ export default function LabelScreen() {
   const account = useAccount();
   const label = labels.labels.find((entry) => entry.id === labelKey);
   const selection = useGallerySelection<string>();
-  const { filters, setFilters } = useGalleryFilters({ labelIds: [labelKey] });
+  const { filters, setFilters } = useGalleryFilters();
 
   useEffect(() => {
     void loadLabels(projectId);
@@ -47,8 +48,13 @@ export default function LabelScreen() {
 
   const filtered = useMemo(() => filterItems(gallery.items, filters), [gallery.items, filters]);
   const photos = useMemo<Photo[]>(
-    () => filtered.map((item) => ({ ...tileOf(item), selected: selection.has(item.id) })),
-    [filtered, selection],
+    () =>
+      filtered.map((item) => ({
+        ...tileOf(item),
+        selected: selection.has(item.id),
+        frameColor: label && item.labelIds.includes(labelKey) ? label.color : undefined,
+      })),
+    [filtered, selection, label, labelKey],
   );
   const viewerPhotos = useMemo(() => filtered.map(viewerOf), [filtered]);
   const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
@@ -71,6 +77,7 @@ export default function LabelScreen() {
         measureRef={galleryScreen.measureTile}
         selection={selection}
         hud={{
+          showWhenEmpty: true,
           primary: {
             kind: 'single',
             label: labelShown ? t('labels.showAll') : t('labels.showLabel'),
@@ -96,7 +103,7 @@ export default function LabelScreen() {
             <LoadError onRetry={() => void loadGallery(projectId, true)} />
           ) : null
         }
-        author={account?.name ?? undefined}
+        author={displayName(account?.name, account?.username) || undefined}
         authorAvatarUrl={avatar.url}
         info={mediaInfo}
         header={

@@ -36,6 +36,7 @@ export function useGalleryScreen(
 
 export type GalleryHudConfig = {
   primary?: GalleryPrimary;
+  showWhenEmpty?: boolean;
   keepPrimary?: boolean;
   rightButtons?: number;
   selectionDefault?: boolean;
@@ -158,7 +159,7 @@ export function GalleryScreen({
         />
       )}
       {chromeLayer}
-      {hud && !loading && photos.length > 0 ? (
+      {hud && !loading && (photos.length > 0 || hud.showWhenEmpty) ? (
         <GalleryHud
           chrome={chrome.chrome}
           filterAnim={chrome.filterAnim}

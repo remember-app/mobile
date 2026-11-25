@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { addMember, loadContacts, loadInvite } from '@/functionality';
+import { displayName } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { CONTACT_STRIP_HEIGHT, ContactStrip } from '@/ui/components/people/contact-strip';
 import { InviteCode } from '@/ui/components/project/invite-code';
@@ -46,7 +47,7 @@ export function InviteBlocks({
         <ContactStrip
           contacts={available.map((contact) => ({
             id: contact.userId,
-            name: contact.name ?? contact.username ?? '',
+            name: displayName(contact.name, contact.username),
             avatarUrl: null,
           }))}
           selected={NONE}
