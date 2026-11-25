@@ -13,7 +13,9 @@ import Animated, {
   interpolate,
   useAnimatedKeyboard,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,7 +50,7 @@ type Phase = 'providers' | 'email' | 'invite' | 'code' | 'username';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function OnboardingScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { color } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -64,7 +66,9 @@ export default function OnboardingScreen() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const step = useSharedValue(0);
+  const drift = useSharedValue(0);
   const actionSize = useSharedValue(160 + insets.bottom);
+  const reducedMotion = useReducedMotion();
   const stepDuration = useRef(STEP_MS);
   const input = useRef<TextInputRef>(null);
   const codeInput = useRef<TextInputRef>(null);
@@ -75,6 +79,7 @@ export default function OnboardingScreen() {
   const media = useSystemMedia();
   const slides = media.filter((item) => item.name.startsWith('onboarding-'));
   const slide = slides.length > 0 ? slides[index % slides.length] : undefined;
+  const caption = slide?.captions?.[i18n.language === 'ru' ? 'ru' : 'en'] ?? null;
 
   const cardTop = insets.top + space.s4;
   const cardLeft = space.s4;
@@ -88,6 +93,18 @@ export default function OnboardingScreen() {
       easing: Easing.inOut(Easing.cubic),
     });
   }, [step, stepIndex]);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      drift.value = 0;
+      return;
+    }
+    drift.value = withRepeat(
+      withTiming(1, { duration: SLIDE_MS * 2, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+  }, [drift, reducedMotion]);
 
   useEffect(() => {
     if (!seenStep.current) {
@@ -334,6 +351,15 @@ export default function OnboardingScreen() {
     opacity: interpolate(step.value, [1, 2], [1, 0.7], Extrapolation.CLAMP),
   }));
 
+  const zoomStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(drift.value, [0, 1], [1, 1.06]) }],
+  }));
+
+  const captionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(step.value, [0.7, 1.4], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(step.value, [0.7, 1.4], [0, 10], Extrapolation.CLAMP) }],
+  }));
+
   const actionStyle = useAnimatedStyle(() => ({
     height: interpolate(
       step.value,
@@ -365,10 +391,17 @@ export default function OnboardingScreen() {
             resizeMode="cover"
             entering={FadeIn.duration(1000)}
             exiting={FadeOut.duration(800)}
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, zoomStyle]}
           />
         ) : null}
         <Animated.View style={[styles.scrim, scrimStyle]} />
+        {caption ? (
+          <Animated.View style={[styles.caption, captionStyle]} pointerEvents="none">
+            <Text role="displaySm" tone="onFill" style={styles.captionText}>
+              {caption}
+            </Text>
+          </Animated.View>
+        ) : null}
         <Animated.View style={[styles.brand, brandStyle]}>
           <Text role="heroSm" tone="onFill">
             Remember
@@ -502,6 +535,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     backgroundColor: 'rgba(11,11,18,0.26)',
+  },
+  caption: {
+    position: 'absolute',
+    right: space.s4,
+    bottom: space.s6,
+    left: space.s4,
+  },
+  captionText: {
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   brand: {
     position: 'absolute',
