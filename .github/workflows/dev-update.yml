@@ -1,0 +1,37 @@
+name: mobile dev update
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: mobile-dev-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      # runtimeVersion: fingerprint — старые бинарники не примут несовместимое OTA,
+      # поэтому такой push должен идти через build workflow, а не через update.
+      - name: refuse OTA when native fingerprint changes
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -qE '^(app.json|package.json|package-lock.json|ios/|android/|fingerprint.config.js|eas.json)$'; then
+            echo "native fingerprint changed — use the ios build workflow"
+            exit 1
+          fi
+      - name: publish EAS Update to dev channel
+        run: npx --yes eas-cli update --channel dev --environment preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_DOTENV: '1'
+          EXPO_PUBLIC_API_URL: https://api.remember-app.fun

@@ -18,10 +18,24 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.remember-app.fun"
       }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.remember-app.fun"
+      }
     }
   },
   "submit": {
     "testflight": {
+      "ios": {
+        "ascAppId": "6816034455"
+      }
+    },
+    "production": {
       "ios": {
         "ascAppId": "6816034455"
       }
