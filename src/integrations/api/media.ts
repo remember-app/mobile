@@ -1,10 +1,10 @@
-import type { DownloadLink, Item, Media } from '@/models';
+import type { Item, ItemLinkVariant, Media } from '@/models';
 import type { CursorPage } from '@/types/api';
 import type { MediaId, ProjectId, ProjectItemId } from '@/types/id';
 
 import { query, request } from './client';
 import { toCursorPage, toItem, toMedia } from './map';
-import type { CursorPageWire, DownloadLinksWire, ItemWire, MediaWire } from './wire';
+import type { CursorPageWire, ItemLinksWire, ItemWire, MediaWire } from './wire';
 
 export function listGallery(
   token: string,
@@ -20,14 +20,14 @@ export function getItem(token: string, projectId: ProjectId, itemId: ProjectItem
   return request<ItemWire>(`/v1/projects/${projectId}/items/${itemId}`, { token }).then(toItem);
 }
 
-export function downloadLinks(
+export function itemLinks(
   token: string,
   projectId: ProjectId,
-  itemIds: ProjectItemId[],
-): Promise<DownloadLink[]> {
-  return request<DownloadLinksWire>(`/v1/projects/${projectId}/download-links`, {
+  items: { itemId: ProjectItemId; variant: ItemLinkVariant }[],
+): Promise<ItemLinksWire['items']> {
+  return request<ItemLinksWire>(`/v1/projects/${projectId}/download-links`, {
     method: 'POST',
-    body: { itemIds },
+    body: { items },
     token,
   }).then((wire) => wire.items);
 }

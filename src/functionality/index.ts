@@ -88,6 +88,11 @@ export {
 } from './media/cache';
 export { nearDuplicateExtras } from './media/duplicates';
 export {
+  forgetLinks,
+  previewLink,
+  resolveLink,
+} from './media/source';
+export {
   clearGalleries,
   downloadItems,
   forgetGallery,

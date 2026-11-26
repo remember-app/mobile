@@ -67,16 +67,23 @@ export type DownloadLink = {
 };
 
 export type PreviewSize = 'small' | 'middle' | 'large';
+export type ItemLinkVariant = 'large' | 'detail' | 'playback' | 'original';
+
+export type ItemVariants = {
+  original: MediaId;
+  compressed: MediaId | null;
+  previews: Partial<Record<PreviewSize, MediaId>>;
+};
 
 export type Item = {
   id: ProjectItemId;
   projectId: ProjectId;
   kind: MediaKind;
   media: Media;
+  variants: ItemVariants;
   links: {
-    original: string | null;
-    compressed: string | null;
-    previews: Partial<Record<PreviewSize, string>>;
+    small: string | null;
+    middle: string | null;
   };
   uploader: PublicUser | null;
   comment: string | null;
@@ -85,21 +92,10 @@ export type Item = {
   createdAt: Date;
 };
 
-export function itemSource(item: Item): string | null {
-  return (
-    item.links.previews.middle ??
-    item.links.previews.small ??
-    item.links.compressed ??
-    item.links.original
-  );
-}
-
-export function itemPreview(item: Item, size: PreviewSize): string | null {
-  return item.links.previews[size] ?? (item.kind === 'video' ? null : itemSource(item));
-}
-
-export function itemPlayback(item: Item): string | null {
-  return item.links.original;
+export function hasVariant(item: Item, variant: ItemLinkVariant): boolean {
+  if (variant === 'original') return true;
+  if (variant === 'large') return item.variants.previews.large !== undefined;
+  return item.variants.compressed !== null && (variant === 'detail') === (item.kind === 'photo');
 }
 
 /** Дата кадра: съёмки, если известна, иначе загрузки — одно правило на всё приложение. */

@@ -185,6 +185,7 @@ export function toItem(wire: ItemWire): Item {
     projectId: wire.item.projectId,
     kind: wire.media.kind,
     media: toMedia(wire.media),
+    variants: wire.variants,
     links: wire.links,
     uploader: wire.uploader ? toPublicUser(wire.uploader) : null,
     comment: wire.item.comment,

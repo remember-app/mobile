@@ -10,7 +10,7 @@ import type {
   ContributionStatus,
   CursorPageResponse,
   DonateConsumablesResponse,
-  DownloadLinksResponse,
+  ItemLinksResponse,
   ItemResponse,
   JoinResponse,
   LabelResponse,
@@ -88,6 +88,6 @@ export type SystemMediaResponseWire = SystemMediaResponse;
 
 export type LoginStartWire = LoginStartResponse;
 export type LoginResultWire = LoginResponse;
-export type DownloadLinksWire = DownloadLinksResponse;
+export type ItemLinksWire = ItemLinksResponse;
 export type AvatarWire = AvatarResponse;
 export type SuggestionsPageWire = SuggestionsPageResponse;
