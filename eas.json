@@ -12,6 +12,7 @@
     },
     "testflight": {
       "distribution": "store",
+      "autoIncrement": true,
       "channel": "testflight",
       "environment": "preview",
       "env": {
@@ -20,6 +21,7 @@
     },
     "production": {
       "distribution": "store",
+      "autoIncrement": true,
       "channel": "production",
       "environment": "production",
       "env": {
