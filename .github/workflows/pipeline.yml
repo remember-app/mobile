@@ -48,7 +48,7 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_NO_DOTENV: '1'
-      EXPO_PUBLIC_API_URL: https://api.remember-app.fun
+      EXPO_PUBLIC_API_URL: ${{ inputs.contour == 'prod' && 'https://api.remember-app.fun' || 'https://test-api.remember-app.fun' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
