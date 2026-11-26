@@ -1,5 +1,12 @@
 import { setStatusBarHidden } from 'expo-status-bar';
-import { Check, Download, Ellipsis, Trash2 } from 'lucide-react-native';
+import {
+  Check,
+  Download,
+  Ellipsis,
+  ImageDown,
+  Image as ImageGlyph,
+  Trash2,
+} from 'lucide-react-native';
 import {
   type ReactNode,
   useCallback,
@@ -22,7 +29,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Path } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { cachedVariant, itemById, keepVariant, saveItemToPhone } from '@/functionality';
@@ -31,7 +37,6 @@ import { fullDay, time } from '@/ui/format';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
 import { BackButton, IconButton } from '@/ui/kit/controls/button';
 import { Avatar } from '@/ui/kit/primitives/avatar';
-import type { IconComponent } from '@/ui/kit/primitives/icon';
 import { Image } from '@/ui/kit/primitives/image';
 import { Text } from '@/ui/kit/primitives/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
@@ -68,21 +73,44 @@ type Phase = 'entering' | 'open' | 'leaving';
 
 const HUD_GAP = 60;
 
-function originalGlyph(ring: string): IconComponent {
-  return function OriginalIcon({ size = 24, color = '#fff', strokeWidth = 1.8 }) {
-    return (
-      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Circle cx="12" cy="12" r="9" stroke={ring} strokeWidth={strokeWidth} />
-        <Path
-          d="M12 7.5v7m0 0-2.8-2.8M12 14.5l2.8-2.8"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    );
-  };
+function ImageChecked({
+  size = 24,
+  color,
+  strokeWidth = 2,
+  fill,
+}: {
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+  fill?: string;
+}) {
+  const { color: themeColor } = useTheme();
+  const badge = Math.round(size * 0.5);
+  return (
+    <View style={{ width: size, height: size }}>
+      <ImageGlyph
+        size={size}
+        color={color ?? themeColor.paper}
+        strokeWidth={strokeWidth}
+        fill={fill}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          right: -2,
+          bottom: -2,
+          width: badge + 4,
+          height: badge + 4,
+          borderRadius: (badge + 4) / 2,
+          backgroundColor: themeColor.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Check size={badge} color={color ?? themeColor.paper} strokeWidth={strokeWidth + 0.6} />
+      </View>
+    </View>
+  );
 }
 
 export function PhotoViewer({
@@ -772,9 +800,7 @@ export function PhotoViewer({
               {activeItem ? (
                 originalProgress === null ? (
                   <IconButton
-                    icon={originalGlyph(
-                      originalLoaded ? theme.color.accent : theme.color.lineStrong,
-                    )}
+                    icon={originalLoaded ? ImageChecked : ImageDown}
                     label={t('action.original')}
                     tone="surface"
                     size={44}
