@@ -59,6 +59,7 @@ import {
   STEPS,
   Start,
 } from '@/ui/components/montage/order/wizard';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import {
   useAccount,
   useGallery,
@@ -226,6 +227,7 @@ export default function NewMontageScreen() {
     });
   }, [filters, gallery.items]);
 
+  const media = useGalleryMedia(shots);
   const shotIds = useMemo(() => shots.map((item) => item.id), [shots]);
   const shotId =
     galleryViewer.viewer === null ? null : (shotIds[galleryViewer.viewer.index] ?? null);
@@ -233,14 +235,14 @@ export default function NewMontageScreen() {
   const photos = useMemo<Photo[]>(
     () =>
       shots.map((item) => ({
-        ...tileOf(item),
+        ...tileOf(item, media),
         selected: included.has(item.id),
         required: draft.requiredItemIds.includes(item.id),
       })),
-    [draft.requiredItemIds, included, shots],
+    [draft.requiredItemIds, included, media, shots],
   );
 
-  const viewerPhotos = useMemo(() => shots.map(viewerOf), [shots]);
+  const viewerPhotos = useMemo(() => shots.map((item) => viewerOf(item, media)), [media, shots]);
 
   const posterShots = useMemo(() => {
     const chosen = shots.filter((item) => draft.includeItemIds.includes(item.id));

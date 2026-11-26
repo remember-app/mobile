@@ -21,6 +21,7 @@ import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-s
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import { useGallery, useLabels, useMembers } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -72,11 +73,12 @@ export default function AnalyzeScreen() {
     [filters, gallery.items],
   );
 
+  const media = useGalleryMedia(items);
   const photos = useMemo<Photo[]>(
-    () => items.map((item) => ({ ...tileOf(item), selected: selection.has(item.id) })),
-    [items, selection],
+    () => items.map((item) => ({ ...tileOf(item, media), selected: selection.has(item.id) })),
+    [items, media, selection],
   );
-  const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
+  const viewerPhotos = useMemo(() => items.map((item) => viewerOf(item, media)), [items, media]);
   const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
 
   useEffect(() => {

@@ -5,9 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  cachedDetail,
   downloadItems,
-  keepVariant,
   loadGallery,
   loadItem,
   loadLabels,
@@ -20,7 +18,6 @@ import {
   localPreviewOf,
   nearDuplicateExtras,
   onUploaded,
-  previewLink,
   progressOf,
   refreshGalleryAll,
   refreshItem,
@@ -28,7 +25,6 @@ import {
   removeItems,
   removeProjectUploads,
   removeUpload,
-  resolveLink,
   retryUpload,
   saveItemsToPhone,
   shareItem,
@@ -51,6 +47,7 @@ import { tileOf } from '@/ui/components/media/photo-item';
 import { ProjectHeader } from '@/ui/components/project/project-header';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import {
   useAccount,
@@ -96,9 +93,7 @@ export default function ProjectScreen() {
   const [selecting, setSelecting] = useState(false);
   const [duplicatesOn, setDuplicatesOn] = useState(false);
   const { filters, setFilters } = useGalleryFilters();
-  const [originals, setOriginals] = useState<Record<string, string>>({});
-  const [playbacks, setPlaybacks] = useState<Record<string, string>>({});
-  const [largeLinks, setLargeLinks] = useState<Record<string, string>>({});
+  const media = useGalleryMedia(gallery.items);
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
 
@@ -128,18 +123,11 @@ export default function ProjectScreen() {
   const photos = useMemo<Photo[]>(() => {
     const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
     const filePhoto = (item: (typeof visibleItems)[number]): Photo => {
-      const tile = tileOf(item);
+      const tile = tileOf(item, media);
       return {
         ...tile,
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
-        viewerSource:
-          (item.kind === 'photo' ? largeLinks[item.id] : undefined) ??
-          previewLink(item, 'middle') ??
-          previewLink(item, 'small'),
-        original: item.kind === 'photo' ? (originals[item.id] ?? cachedDetail(item)) : null,
-        playbackUrl:
-          item.kind === 'video' ? (localPlaybackOf(item.id) ?? playbacks[item.id]) : null,
         selected: selecting ? selection.has(item.id) : undefined,
         author:
           filters.uploaderIds.length > 0
@@ -210,18 +198,7 @@ export default function ProjectScreen() {
     return entries
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [
-    filters,
-    gallery.items,
-    originals,
-    playbacks,
-    largeLinks,
-    visibleItems,
-    labels.labels,
-    pending,
-    selecting,
-    selection,
-  ]);
+  }, [filters, gallery.items, media, visibleItems, labels.labels, pending, selecting, selection]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () =>
@@ -231,39 +208,6 @@ export default function ProjectScreen() {
       })),
     [photos],
   );
-
-  useEffect(() => {
-    let live = true;
-    for (const item of gallery.items) {
-      if (item.kind === 'photo' && !largeLinks[item.id]) {
-        void resolveLink(item, 'large').then((url) => {
-          if (live && url) setLargeLinks((was) => ({ ...was, [item.id]: url }));
-        });
-      }
-      if (item.kind === 'video' && !playbacks[item.id] && !localPlaybackOf(item.id)) {
-        void resolveLink(item, 'playback').then((url) => {
-          if (live && url) setPlaybacks((was) => ({ ...was, [item.id]: url }));
-        });
-      }
-    }
-    return () => {
-      live = false;
-    };
-  }, [gallery.items, largeLinks, playbacks]);
-
-  useEffect(() => {
-    const photo = open === null ? null : photos[open.index];
-    if (!photo || photo.video || photo.upload) return;
-    const item = gallery.items.find((candidate) => candidate.id === photo.id);
-    if (!item || item.kind !== 'photo' || originals[item.id]) return;
-    let live = true;
-    void keepVariant(item, 'detail').then((local) => {
-      if (live && local) setOriginals((was) => ({ ...was, [item.id]: local }));
-    });
-    return () => {
-      live = false;
-    };
-  }, [gallery.items, open, originals, photos]);
 
   if (!project && projects.status !== 'loading') {
     return <Missing title={t('project.title')} message={t('project.notFound')} />;

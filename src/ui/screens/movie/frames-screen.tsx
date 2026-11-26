@@ -12,6 +12,7 @@ import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-s
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import { useGallery, useLabels, useMembers, useMovies } from '@/ui/hooks';
 import { Board } from '@/ui/kit/chrome/bars';
@@ -49,16 +50,17 @@ export default function MovieFramesScreen() {
     [filters, gallery.items, movie],
   );
 
+  const media = useGalleryMedia(items);
   const photos = useMemo<Photo[]>(
     () =>
       items.map((item) => ({
-        ...tileOf(item),
+        ...tileOf(item, media),
         accent: used.has(item.id),
         selected: selection.has(item.id),
       })),
-    [items, selection, used],
+    [items, media, selection, used],
   );
-  const viewer = useMemo(() => items.map(viewerOf), [items]);
+  const viewer = useMemo(() => items.map((item) => viewerOf(item, media)), [items, media]);
   const galleryScreen = useGalleryScreen(photos, viewer, selection);
 
   const bar = <BackBar title={t('montage.movie.framesTitle')} />;

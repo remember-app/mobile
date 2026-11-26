@@ -12,6 +12,7 @@ import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-s
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import { useGallery, useLabels, useMembers, useMontages } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -47,20 +48,21 @@ export default function DirectingJournalScreen() {
     [filters, gallery.items, montage],
   );
 
+  const media = useGalleryMedia(items);
   const used = new Set(montage?.journal.directing?.usedItemIds ?? []);
   const text = montage?.journal.directing?.text ?? '';
 
   const photos = useMemo<Photo[]>(
     () =>
       items.map((item) => ({
-        ...tileOf(item),
+        ...tileOf(item, media),
         accent: used.has(item.id),
         selected: selection.has(item.id),
       })),
-    [items, selection, used],
+    [items, media, selection, used],
   );
 
-  const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
+  const viewerPhotos = useMemo(() => items.map((item) => viewerOf(item, media)), [items, media]);
   const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
 
   const bar = <BackBar title={t('montage.journal.directing')} />;

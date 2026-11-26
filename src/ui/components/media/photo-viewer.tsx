@@ -24,6 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { cachedVariant, itemById, keepVariant } from '@/functionality';
 import { confirmAction } from '@/ui/confirm';
 import { fullDay, time } from '@/ui/format';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -93,6 +94,7 @@ export function PhotoViewer({
   const shownId = useRef<string | null>(viewPhotos[start]?.id ?? null);
   const shownCount = useRef(viewPhotos.length);
   const [hdIndex, setHdIndex] = useState(-1);
+  const [details, setDetails] = useState<Record<string, string>>({});
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
   const [scrolling, setScrolling] = useState(false);
@@ -199,9 +201,23 @@ export function PhotoViewer({
   }, [index]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setHdIndex(index), 600);
+    const photo = viewPhotos[index];
+    const timer = setTimeout(() => {
+      setHdIndex(index);
+      if (!photo || photo.video || !photo.projectId) return;
+      const item = itemById(photo.projectId, photo.id);
+      if (!item) return;
+      const cached = cachedVariant(item, 'detail');
+      if (cached) {
+        setDetails((was) => ({ ...was, [photo.id]: cached }));
+        return;
+      }
+      void keepVariant(item, 'detail').then((local) => {
+        if (local) setDetails((was) => ({ ...was, [photo.id]: local }));
+      });
+    }, 600);
     return () => clearTimeout(timer);
-  }, [index]);
+  }, [index, viewPhotos]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
@@ -439,7 +455,7 @@ export function PhotoViewer({
                 ) : (
                   <Zoomable
                     source={photo.source}
-                    hd={at === hdIndex ? (photo.original ?? null) : null}
+                    hd={at === hdIndex ? (photo.original ?? details[photo.id] ?? null) : null}
                     group={photo.projectId}
                     media={mediaSize(photo)}
                     width={width}

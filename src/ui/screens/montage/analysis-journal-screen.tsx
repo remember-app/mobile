@@ -10,6 +10,7 @@ import { analysisStatus } from '@/ui/components/media/analysis-status';
 import { GalleryViewer, useGalleryViewer } from '@/ui/components/media/gallery-viewer';
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import { viewerOf } from '@/ui/components/media/photo-item';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useAnalysisJobs, useGallery, useMontagePolling, useMontages } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/chrome/bars';
 import { BackBar } from '@/ui/screens/chrome';
@@ -42,8 +43,9 @@ export default function AnalysisJournalScreen() {
     () => new Map(jobs.items.map((job) => [job.itemId, job] as const)),
     [jobs.items],
   );
+  const media = useGalleryMedia(items);
 
-  const viewerPhotos = items.map(viewerOf);
+  const viewerPhotos = items.map((item) => viewerOf(item, media));
 
   return (
     <View style={styles.root}>

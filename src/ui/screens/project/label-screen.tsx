@@ -15,6 +15,7 @@ import { GalleryScreen, useGalleryScreen } from '@/ui/components/media/gallery-s
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { useGalleryMedia } from '@/ui/gallery-media';
 import { useGallerySelection } from '@/ui/gallery-selection';
 import { useAccount, useAvatar, useGallery, useLabels, useMembers } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -47,16 +48,20 @@ export default function LabelScreen() {
   }, [projectId]);
 
   const filtered = useMemo(() => filterItems(gallery.items, filters), [gallery.items, filters]);
+  const media = useGalleryMedia(filtered);
   const photos = useMemo<Photo[]>(
     () =>
       filtered.map((item) => ({
-        ...tileOf(item),
+        ...tileOf(item, media),
         selected: selection.has(item.id),
         frameColor: label && item.labelIds.includes(labelKey) ? label.color : undefined,
       })),
-    [filtered, selection, label, labelKey],
+    [filtered, media, selection, label, labelKey],
   );
-  const viewerPhotos = useMemo(() => filtered.map(viewerOf), [filtered]);
+  const viewerPhotos = useMemo(
+    () => filtered.map((item) => viewerOf(item, media)),
+    [filtered, media],
+  );
   const galleryScreen = useGalleryScreen(photos, viewerPhotos, selection);
   const labelShown = filters.labelIds.includes(labelKey);
 
