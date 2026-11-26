@@ -1,5 +1,5 @@
 import { setStatusBarHidden } from 'expo-status-bar';
-import { Check, Download, Ellipsis, ImageDown, Trash2 } from 'lucide-react-native';
+import { Check, Ellipsis, ImageDown, Save, Trash2 } from 'lucide-react-native';
 import {
   type ReactNode,
   useCallback,
@@ -115,6 +115,7 @@ export function PhotoViewer({
   const current = currentPhoto?.source ?? null;
   const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
   const layout = viewerLayout(width, height, insets);
+  const hudBelow = layout.hudTop + insets.top + 56;
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const canInfo = Boolean(renderInfo);
@@ -653,7 +654,7 @@ export function PhotoViewer({
           style={[
             styles.hud,
             styles.speedBar,
-            { top: layout.hudTop + 56, paddingHorizontal: layout.hudSide },
+            { top: hudBelow, paddingHorizontal: layout.hudSide },
           ]}
         >
           <View
@@ -729,7 +730,7 @@ export function PhotoViewer({
           {menuOpen && currentPhoto ? (
             <Animated.View
               pointerEvents="box-none"
-              style={[styles.menu, { top: layout.hudTop + 52, right: layout.hudSide }, menuStyle]}
+              style={[styles.menu, { top: hudBelow, right: layout.hudSide }, menuStyle]}
             >
               {onDelete ? (
                 <IconButton
@@ -742,7 +743,7 @@ export function PhotoViewer({
               ) : null}
               {activeItem ? (
                 <IconButton
-                  icon={Download}
+                  icon={Save}
                   label={t('action.save')}
                   tone="surface"
                   size={44}
@@ -752,7 +753,8 @@ export function PhotoViewer({
               {activeItem ? (
                 originalProgress === null ? (
                   <IconButton
-                    icon={originalLoaded ? ImageDown : Download}
+                    icon={ImageDown}
+                    dot={originalLoaded}
                     label={t('action.original')}
                     tone="surface"
                     size={44}
