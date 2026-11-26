@@ -204,17 +204,33 @@ export function PhotoViewer({
 
   useEffect(() => {
     if (!grows) return;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      scheduleOnRN(setPhase, 'open');
+    };
     const frame = requestAnimationFrame(() => {
       progress.value = withTiming(
         1,
         { duration: 300, easing: Easing.out(Easing.cubic) },
         (done) => {
-          if (done) scheduleOnRN(setPhase, 'open');
+          if (done) finish();
         },
       );
     });
-    return () => cancelAnimationFrame(frame);
+    const fallback = setTimeout(finish, 500);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(fallback);
+    };
   }, [grows, progress]);
+
+  useEffect(() => {
+    if (grows || phase !== 'entering') return;
+    progress.value = 1;
+    setPhase('open');
+  }, [grows, phase, progress]);
 
   const targetLeft = origin?.x ?? 0;
   const targetTop = origin?.y ?? 0;
