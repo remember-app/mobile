@@ -72,14 +72,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/setup-python@v5
         with:
-          ruby-version: '3.3'
-          bundler-cache: true
+          python-version: '3.12'
       - name: upload App Store metadata
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
-          RUNNER_TEMP: ${{ runner.temp }}
-        run: bundle exec fastlane metadata
+        run: python3 scripts/asc_metadata.py
