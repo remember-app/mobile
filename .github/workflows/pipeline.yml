@@ -14,7 +14,7 @@ on:
         description: Action
         required: true
         type: choice
-        options: [build, ota]
+        options: [build, ota, metadata]
         default: build
 
 concurrency:
@@ -66,3 +66,20 @@ jobs:
             --environment ${{ inputs.contour == 'prod' && 'production' || 'preview' }} \
             --message "CI EAS Update ${{ inputs.contour }}" \
             --non-interactive
+
+  metadata:
+    if: ${{ inputs.action == 'metadata' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: upload App Store metadata
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: bundle exec fastlane metadata
