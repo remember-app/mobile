@@ -98,6 +98,7 @@ export default function ProjectScreen() {
   const { filters, setFilters } = useGalleryFilters();
   const [originals, setOriginals] = useState<Record<string, string>>({});
   const [playbacks, setPlaybacks] = useState<Record<string, string>>({});
+  const [largeLinks, setLargeLinks] = useState<Record<string, string>>({});
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
 
@@ -132,7 +133,10 @@ export default function ProjectScreen() {
         ...tile,
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
-        viewerSource: previewLink(item, 'middle') ?? previewLink(item, 'small'),
+        viewerSource:
+          (item.kind === 'photo' ? largeLinks[item.id] : undefined) ??
+          previewLink(item, 'middle') ??
+          previewLink(item, 'small'),
         original: item.kind === 'photo' ? (originals[item.id] ?? cachedDetail(item)) : null,
         playbackUrl:
           item.kind === 'video' ? (localPlaybackOf(item.id) ?? playbacks[item.id]) : null,
@@ -211,6 +215,7 @@ export default function ProjectScreen() {
     gallery.items,
     originals,
     playbacks,
+    largeLinks,
     visibleItems,
     labels.labels,
     pending,
@@ -230,15 +235,21 @@ export default function ProjectScreen() {
   useEffect(() => {
     let live = true;
     for (const item of gallery.items) {
-      if (item.kind !== 'video' || playbacks[item.id] || localPlaybackOf(item.id)) continue;
-      void resolveLink(item, 'playback').then((url) => {
-        if (live && url) setPlaybacks((was) => ({ ...was, [item.id]: url }));
-      });
+      if (item.kind === 'photo' && !largeLinks[item.id]) {
+        void resolveLink(item, 'large').then((url) => {
+          if (live && url) setLargeLinks((was) => ({ ...was, [item.id]: url }));
+        });
+      }
+      if (item.kind === 'video' && !playbacks[item.id] && !localPlaybackOf(item.id)) {
+        void resolveLink(item, 'playback').then((url) => {
+          if (live && url) setPlaybacks((was) => ({ ...was, [item.id]: url }));
+        });
+      }
     }
     return () => {
       live = false;
     };
-  }, [gallery.items]);
+  }, [gallery.items, largeLinks, playbacks]);
 
   useEffect(() => {
     const photo = open === null ? null : photos[open.index];
