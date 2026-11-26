@@ -20,6 +20,7 @@ platform :ios do
       app_identifier: "com.noxlabs.remember",
       skip_binary_upload: true,
       submit_for_review: false,
+      individual_metadata_items: ["description", "keywords", "release_notes"],
       force: true
     )
   end
