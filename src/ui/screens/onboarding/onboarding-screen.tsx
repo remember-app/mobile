@@ -44,6 +44,11 @@ import type { TextInputRef } from '@/ui/kit/controls/field';
 import { Text } from '@/ui/kit/primitives/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
+const logoByTheme = {
+  light: require('../../../../assets/logo/logo-2048x2048-light.svg'),
+  dark: require('../../../../assets/logo/logo-2048x2048.svg'),
+};
+
 const SLIDE_MS = 6000;
 const STEP_MS = 520;
 type Phase = 'providers' | 'email' | 'invite' | 'code' | 'username';
@@ -51,7 +56,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function OnboardingScreen() {
   const { t, i18n } = useTranslation();
-  const { color } = useTheme();
+  const { color, name } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -410,11 +415,7 @@ export default function OnboardingScreen() {
           <Text role="heroSm" tone="onFill">
             Remember
           </Text>
-          <ExpoImage
-            source={require('../../../../assets/logo/logo-2048x2048.svg')}
-            contentFit="contain"
-            style={styles.logo}
-          />
+          <ExpoImage source={logoByTheme[name]} contentFit="contain" style={styles.logo} />
         </Animated.View>
       </AnimatedPressable>
 
