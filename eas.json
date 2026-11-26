@@ -1,6 +1,6 @@
 {
   "cli": {
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -12,8 +12,7 @@
     },
     "testflight": {
       "distribution": "store",
-      "autoIncrement": true,
-      "channel": "dev",
+      "channel": "testflight",
       "environment": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.remember-app.fun"
@@ -21,7 +20,6 @@
     },
     "production": {
       "distribution": "store",
-      "autoIncrement": true,
       "channel": "production",
       "environment": "production",
       "env": {

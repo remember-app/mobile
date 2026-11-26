@@ -1,0 +1,66 @@
+name: mobile pipeline
+
+# Ручной запуск: push в любую ветку и новые теги ничего не собирают.
+on:
+  workflow_dispatch:
+    inputs:
+      contour:
+        description: Contour
+        required: true
+        type: choice
+        options: [test, prod]
+        default: test
+      action:
+        description: Action
+        required: true
+        type: choice
+        options: [build, ota]
+        default: build
+
+concurrency:
+  group: mobile-pipeline-${{ inputs.contour }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ inputs.action == 'build' }}
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PROFILE: ${{ inputs.contour == 'prod' && 'production' || 'testflight' }}
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: build and submit iOS
+        run: |
+          npx --yes eas-cli build --profile "$EXPO_PROFILE" --platform ios \
+            --non-interactive --auto-submit-with-profile "$EXPO_PROFILE" --wait
+
+  ota:
+    if: ${{ inputs.action == 'ota' }}
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_NO_DOTENV: '1'
+      EXPO_PUBLIC_API_URL: https://api.remember-app.fun
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: publish EAS Update
+        run: |
+          npx --yes eas-cli update \
+            --channel ${{ inputs.contour == 'prod' && 'production' || 'testflight' }} \
+            --environment ${{ inputs.contour == 'prod' && 'production' || 'preview' }} \
+            --non-interactive
