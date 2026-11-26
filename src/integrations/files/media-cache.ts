@@ -28,6 +28,21 @@ const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 const isProject = (group: string | null): group is string => !!group && validId(group);
 const folderOf = (group: string | null, scope: MediaScope = 'misc') =>
   isProject(group) ? new Directory(root(), group) : new Directory(root(), OTHER, scope);
+const versionFile = () => new File(root(), '.variant-v2');
+
+function resetOldCache(): void {
+  try {
+    if (versionFile().exists) return;
+    const folder = root();
+    if (folder.exists) folder.delete();
+    folder.create({ intermediates: true, idempotent: true });
+    versionFile().create();
+  } catch (error) {
+    console.warn('old media cache could not be cleared:', error);
+  }
+}
+
+resetOldCache();
 
 const cleared = new Set<() => void>();
 
@@ -297,6 +312,7 @@ export function mediaCacheUsage(): MediaUsage {
 export function clearMediaCache(): void {
   try {
     if (root().exists) root().delete();
+    resetOldCache();
   } catch (error) {
     console.warn('media cache could not be cleared:', error);
   }
