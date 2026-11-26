@@ -22,6 +22,13 @@ ROOT = Path(__file__).resolve().parent.parent
 METADATA = ROOT / "fastlane" / "metadata"
 SCREENSHOTS = ROOT / "fastlane" / "screenshots"
 DISPLAY_TYPE = "APP_IPHONE_61"  # 1206x2622, iPhone with Dynamic Island (medium)
+COPYRIGHT = "© 2026 Nox Labs"
+PRIVACY_URL = "https://remember-app.github.io/remember-product/privacy.html"
+CONTACT_PHONE = "+998 91 956 29 00"
+REVIEW_NOTES = (
+    "Invite-only app. Sign in with any email address; the one-time code is delivered to that "
+    "address. App invitation code: REV26X. No demo account is required."
+)
 
 
 def b64url(data: bytes) -> str:
@@ -165,6 +172,54 @@ def upload_screenshots(token: str, localizations: list) -> None:
         print(f"uploaded {len(files)} screenshots for {locale}")
 
 
+def ensure_app_info(token: str, app_id: str) -> None:
+    infos = request(token, f"/v1/apps/{app_id}/appInfos")["data"]
+    for info in infos:
+        localizations = request(token, f"/v1/appInfos/{info['id']}/appInfoLocalizations")["data"]
+        for localization in localizations:
+            request(token, f"/v1/appInfoLocalizations/{localization['id']}", method="PATCH", body={
+                "data": {
+                    "type": "appInfoLocalizations",
+                    "id": localization["id"],
+                    "attributes": {
+                        "name": "Remember 2",
+                        "subtitle": "Shared memories, one film",
+                        "privacyPolicyUrl": PRIVACY_URL,
+                    },
+                }
+            })
+            print(f"updated app info: {localization['attributes'].get('locale')}")
+
+
+def ensure_review_detail(token: str, version: dict) -> None:
+    existing = request(token, f"/v1/appStoreVersions/{version['id']}/appStoreReviewDetail")
+    current = existing.get("data") if existing else None
+    attributes = {
+        "contactFirstName": "Remember",
+        "contactLastName": "Support",
+        "contactEmail": "dev@noxlabs.xyz",
+        "contactPhone": CONTACT_PHONE,
+        "demoAccountRequired": False,
+        "notes": REVIEW_NOTES,
+    }
+    if current:
+        request(token, f"/v1/appStoreReviewDetails/{current['id']}", method="PATCH", body={
+            "data": {"type": "appStoreReviewDetails", "id": current["id"], "attributes": attributes}
+        })
+        print("updated app review details")
+    else:
+        request(token, "/v1/appStoreReviewDetails", method="POST", body={
+            "data": {
+                "type": "appStoreReviewDetails",
+                "attributes": attributes,
+                "relationships": {
+                    "appStoreVersion": {"data": {"id": version["id"], "type": "appStoreVersions"}}
+                },
+            }
+        })
+        print("created app review details")
+
+
 def main() -> None:
     with tempfile.NamedTemporaryFile(suffix=".p8", delete=False) as key_file:
         key_file.write(base64.b64decode(os.environ["ASC_PRIVATE_KEY_B64"]))
@@ -184,6 +239,13 @@ def main() -> None:
     if not versions["data"]:
         raise RuntimeError("no iOS App Store version found")
     version = versions["data"][0]
+
+    request(token, f"/v1/appStoreVersions/{version['id']}", method="PATCH", body={
+        "data": {"type": "appStoreVersions", "id": version["id"], "attributes": {"copyright": COPYRIGHT}}
+    })
+    print("updated copyright")
+
+    ensure_app_info(token, app_id)
 
     localizations = request(token, f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")
     for localization in localizations["data"]:
@@ -205,6 +267,7 @@ def main() -> None:
         print(f"updated {locale}: {', '.join(sorted(attributes))}")
 
     upload_screenshots(token, localizations)
+    ensure_review_detail(token, version)
 
 
 if __name__ == "__main__":
