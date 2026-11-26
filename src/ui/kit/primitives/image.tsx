@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   cachedUrl,
-  keepLoaded,
+  keepUrl,
   type MediaScope,
   onCacheCleared,
 } from '@/integrations/files/media-cache';
@@ -20,16 +20,18 @@ export function Image({ source, group, scope, onLoad, ...rest }: Props) {
     [epoch, group, scope, uri],
   );
 
-  return (
-    <ExpoImage
-      {...rest}
-      source={local ? { uri: local } : source}
-      onLoad={(event) => {
-        onLoad?.(event);
-        if (uri && !local) void keepLoaded(uri, group ?? null, scope);
-      }}
-    />
-  );
+  useEffect(() => {
+    if (!uri || local) return;
+    let live = true;
+    void keepUrl(uri, group ?? null, scope).then((saved) => {
+      if (live && saved) setEpoch((value) => value + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, [epoch, group, local, scope, uri]);
+
+  return <ExpoImage {...rest} source={local ? { uri: local } : source} onLoad={onLoad} />;
 }
 
 function uriOf(source: ImageProps['source']): string | null {

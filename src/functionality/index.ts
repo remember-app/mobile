@@ -88,7 +88,9 @@ export {
 } from './media/cache';
 export { nearDuplicateExtras } from './media/duplicates';
 export {
+  cachedVariant,
   forgetLinks,
+  keepVariant,
   previewLink,
   resolveLink,
 } from './media/source';

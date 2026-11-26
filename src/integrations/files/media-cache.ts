@@ -1,7 +1,16 @@
 import { Directory, File, Paths } from 'expo-file-system';
-import { Image } from 'expo-image';
 
 export type MediaScope = 'avatars' | 'system' | 'music' | 'misc';
+type Lane = 'image' | 'video' | 'other';
+
+export type MediaFile = {
+  id: string;
+  ext: string;
+  group: string | null;
+  scope?: MediaScope;
+  lane?: Lane;
+  priority?: number;
+};
 
 export type MediaUsage = {
   total: number;
@@ -11,6 +20,9 @@ export type MediaUsage = {
 
 const OTHER = 'other';
 const SCOPES: MediaScope[] = ['avatars', 'system', 'music', 'misc'];
+const LIMITS: Record<Lane, number> = { image: 3, video: 1, other: 2 };
+const MAX_BYTES = 600 * 1024 * 1024;
+const TIMEOUT_MS = 25_000;
 const root = () => new Directory(Paths.document, 'media');
 const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 const isProject = (group: string | null): group is string => !!group && validId(group);
@@ -39,20 +51,32 @@ export function urlKey(url: string): { id: string; ext: string } | null {
   }
 }
 
-function fileOf(url: string, group: string | null, scope: MediaScope): File | null {
-  const key = urlKey(url);
-  return key ? new File(folderOf(group, scope), `${key.id}.${key.ext}`) : null;
+const laneOf = (ext: string): Lane => (ext === 'mp4' ? 'video' : ext === 'm4a' ? 'other' : 'image');
+
+function fileOf(file: MediaFile): File | null {
+  if (!validId(file.id) || !/^[a-z0-9]+$/i.test(file.ext)) return null;
+  return new File(folderOf(file.group, file.scope), `${file.id}.${file.ext}`);
 }
 
-function partOf(url: string, group: string | null, scope: MediaScope): File | null {
-  const key = urlKey(url);
+function partOf(file: MediaFile): File | null {
+  if (!validId(file.id) || !/^[a-z0-9]+$/i.test(file.ext)) return null;
   const suffix = Math.random().toString(36).slice(2, 8);
-  return key ? new File(folderOf(group, scope), `${key.id}.${key.ext}.${suffix}.part`) : null;
+  return new File(folderOf(file.group, file.scope), `${file.id}.${file.ext}.${suffix}.part`);
 }
 
-function cacheKeyOf(url: string, group: string | null, scope: MediaScope): string | null {
-  const key = urlKey(url);
-  return key ? `${folderOf(group, scope).uri}/${key.id}.${key.ext}` : null;
+function cacheKeyOf(file: MediaFile): string | null {
+  const target = fileOf(file);
+  return target?.uri ?? null;
+}
+
+export function cachedFile(file: MediaFile): string | null {
+  const target = fileOf(file);
+  try {
+    return target?.exists ? target.uri : null;
+  } catch (error) {
+    console.warn(`cached media ${file.id} could not be read:`, error);
+    return null;
+  }
 }
 
 export function cachedUrl(
@@ -60,13 +84,8 @@ export function cachedUrl(
   group: string | null,
   scope: MediaScope = 'misc',
 ): string | null {
-  const file = fileOf(url, group, scope);
-  try {
-    return file?.exists ? file.uri : null;
-  } catch (error) {
-    console.warn(`cached media ${url} could not be read:`, error);
-    return null;
-  }
+  const key = urlKey(url);
+  return key ? cachedFile({ ...key, group, scope }) : null;
 }
 
 function folderReady(group: string | null, scope: MediaScope): Directory {
@@ -87,26 +106,126 @@ export async function cacheLocalFile(
   return target.uri;
 }
 
-const downloading = new Map<string, Promise<string | null>>();
-const copying = new Map<string, Promise<string | null>>();
-let queue: Promise<unknown> = Promise.resolve();
+const active: Record<Lane, number> = { image: 0, video: 0, other: 0 };
+const waiting: { lane: Lane; priority: number; start: () => void }[] = [];
 
-function serially<T>(run: () => Promise<T>): Promise<T> {
-  const next = queue.then(run, run);
-  queue = next.catch(() => undefined);
-  return next;
+function pump(): void {
+  for (let index = 0; index < waiting.length; ) {
+    const task = waiting[index];
+    if (!task || active[task.lane] >= LIMITS[task.lane]) {
+      index += 1;
+      continue;
+    }
+    waiting.splice(index, 1);
+    active[task.lane] += 1;
+    task.start();
+  }
 }
 
+function schedule<T>(lane: Lane, priority: number, run: () => Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    waiting.push({
+      lane,
+      priority,
+      start: () => {
+        void run()
+          .then(resolve, reject)
+          .finally(() => {
+            active[lane] -= 1;
+            pump();
+          });
+      },
+    });
+    waiting.sort((left, right) => right.priority - left.priority);
+    pump();
+  });
+}
+
+const downloading = new Map<string, Promise<string | null>>();
+
 function tracked(
-  map: Map<string, Promise<string | null>>,
   key: string,
   run: () => Promise<string | null>,
 ): Promise<string | null> {
-  const running = map.get(key);
+  const running = downloading.get(key);
   if (running) return running;
-  const promise = run().finally(() => map.delete(key));
-  map.set(key, promise);
+  const promise = run().finally(() => downloading.delete(key));
+  downloading.set(key, promise);
   return promise;
+}
+
+function trimCache(): void {
+  try {
+    if (!root().exists) return;
+    const files: { file: File; size: number; at: number }[] = [];
+    const walk = (directory: Directory) => {
+      for (const entry of directory.list()) {
+        if (entry instanceof Directory) walk(entry);
+        else if (entry instanceof File) {
+          const info = entry.info();
+          files.push({ file: entry, size: info.size ?? 0, at: info.modificationTime ?? 0 });
+        }
+      }
+    };
+    walk(root());
+    let total = files.reduce((sum, entry) => sum + entry.size, 0);
+    if (total <= MAX_BYTES) return;
+    files.sort((left, right) => left.at - right.at);
+    for (const entry of files) {
+      if (total <= MAX_BYTES) break;
+      try {
+        entry.file.delete();
+        total -= entry.size;
+      } catch (error) {
+        console.warn(`old media ${entry.file.name} could not be deleted:`, error);
+      }
+    }
+  } catch (error) {
+    console.warn('media cache could not be trimmed:', error);
+  }
+}
+
+export function keepFile(
+  file: MediaFile,
+  resolveUrl: (fresh: boolean) => Promise<string | null>,
+): Promise<string | null> {
+  const key = cacheKeyOf(file);
+  if (!key) return Promise.resolve(null);
+  const known = cachedFile(file);
+  if (known) return Promise.resolve(known);
+  return tracked(key, () =>
+    schedule(file.lane ?? laneOf(file.ext), file.priority ?? 0, async () => {
+      const target = fileOf(file);
+      const part = partOf(file);
+      if (!target || !part) return null;
+      folderReady(file.group, file.scope ?? 'misc');
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const url = await resolveUrl(attempt > 0);
+        if (!url) return null;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          await File.downloadFileAsync(url, part, {
+            idempotent: true,
+            signal: controller.signal,
+          });
+          await part.move(target, { overwrite: true });
+          trimCache();
+          return target.uri;
+        } catch (error) {
+          if (attempt === 1) console.warn(`media ${file.id} was not kept:`, error);
+          try {
+            part.delete();
+          } catch {
+            // the half-file was already gone
+          }
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      return null;
+    }),
+  );
 }
 
 export function keepUrl(
@@ -114,70 +233,9 @@ export function keepUrl(
   group: string | null,
   scope: MediaScope = 'misc',
 ): Promise<string | null> {
-  const key = cacheKeyOf(url, group, scope);
+  const key = urlKey(url);
   if (!key) return Promise.resolve(null);
-  const known = cachedUrl(url, group, scope);
-  if (known) return Promise.resolve(known);
-  return tracked(downloading, key, () =>
-    serially(async () => {
-      const file = fileOf(url, group, scope);
-      const part = partOf(url, group, scope);
-      if (!file || !part) return null;
-      try {
-        folderReady(group, scope);
-        await File.downloadFileAsync(url, part, { idempotent: true });
-        await part.move(file, { overwrite: true });
-        return file.uri;
-      } catch (error) {
-        console.warn(`media ${url} was not kept:`, error);
-        try {
-          part.delete();
-        } catch {
-          // the half-file was already gone
-        }
-        return null;
-      }
-    }),
-  );
-}
-
-export function keepLoaded(
-  url: string,
-  group: string | null,
-  scope: MediaScope = 'misc',
-): Promise<string | null> {
-  const key = cacheKeyOf(url, group, scope);
-  if (!key) return Promise.resolve(null);
-  const known = cachedUrl(url, group, scope);
-  if (known) return Promise.resolve(known);
-  return tracked(copying, key, async () => {
-    const file = fileOf(url, group, scope);
-    const part = partOf(url, group, scope);
-    if (!file || !part) return null;
-    try {
-      const source = await imageCachePath(url);
-      if (!source) return null;
-      folderReady(group, scope);
-      await new File(source).copy(part, { overwrite: true });
-      await part.move(file, { overwrite: true });
-      return file.uri;
-    } catch (error) {
-      console.warn(`displayed media ${url} could not be copied:`, error);
-      try {
-        part.delete();
-      } catch {
-        // the half-file was already gone
-      }
-      return null;
-    }
-  });
-}
-
-async function imageCachePath(url: string): Promise<string | null> {
-  const first = await Image.getCachePathAsync(url);
-  if (first) return first;
-  await new Promise((resolve) => setTimeout(resolve, 350));
-  return Image.getCachePathAsync(url);
+  return keepFile({ ...key, group, scope }, () => Promise.resolve(url));
 }
 
 function sumFiles(directory: Directory): number {
@@ -204,7 +262,7 @@ export function mediaCacheUsage(): MediaUsage {
   let total = 0;
   const addOther = (scope: MediaScope, bytes: number) => {
     if (bytes <= 0) return;
-    other.set(scope, (other.get(scope) ?? 0) + bytes);
+    other.set(scope, bytes);
     total += bytes;
   };
   try {
