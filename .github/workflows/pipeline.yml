@@ -26,9 +26,8 @@ jobs:
     if: ${{ inputs.action == 'build' }}
     runs-on: ubuntu-latest
     env:
-      EXPO_PROFILE: ${{ inputs.contour == 'prod' && 'production' || 'testflight' }}
+      EAS_PROFILE: ${{ inputs.contour == 'prod' && 'production' || 'testflight' }}
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_DEBUG: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,8 +39,8 @@ jobs:
       - run: npm run lint
       - name: build and submit iOS
         run: |
-          npx --yes eas-cli build --profile "$EXPO_PROFILE" --platform ios \
-            --non-interactive --auto-submit-with-profile "$EXPO_PROFILE" --wait
+          npx --yes eas-cli build --profile "$EAS_PROFILE" --platform ios \
+            --non-interactive --auto-submit-with-profile "$EAS_PROFILE" --wait
 
   ota:
     if: ${{ inputs.action == 'ota' }}
