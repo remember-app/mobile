@@ -14,7 +14,7 @@ import {
   retryMontage,
 } from '@/functionality';
 import {
-  itemSource,
+  itemThumb,
   montageItemIds,
   montageItems,
   montageRunning,
@@ -134,7 +134,7 @@ export default function MontageScreen() {
     const song = songs.find((entry) => entry.originalId === mediaId);
     return song ? [song] : [];
   });
-  const frames = chosen.map(itemSource).filter((source): source is string => Boolean(source));
+  const frames = chosen.map(itemThumb).filter((source): source is string => Boolean(source));
   const failed = montage.status === 'failed';
   const wide = settings ? settings.dimensions.width >= settings.dimensions.height : false;
 

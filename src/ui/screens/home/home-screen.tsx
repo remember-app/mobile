@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { loadMoreProjects, loadProjects, projectCoverFrames } from '@/functionality';
+import { loadMoreProjects, loadProjects } from '@/functionality';
 import type { ProjectCard as ProjectCardModel } from '@/models';
 import { ProjectCardSkeleton } from '@/ui/components/feedback/skeletons';
 import { ProjectCard } from '@/ui/components/project/project-card';
@@ -21,7 +21,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
-  const [covers, setCovers] = useState<Record<string, string[]>>({});
   const state = useProjects();
   const cards = state.cards;
   const loading = state.status === 'loading' && cards.length === 0;
@@ -44,23 +43,6 @@ export default function HomeScreen() {
   useEffect(() => {
     list.current?.scrollToEnd({ animated: true });
   }, [cards.length]);
-
-  useEffect(() => {
-    let live = true;
-    const load = () => {
-      void Promise.all(
-        cards.map(async (card) => [card.id, await projectCoverFrames(card.id)] as const),
-      ).then((entries) => {
-        if (live) setCovers((was) => ({ ...was, ...Object.fromEntries(entries) }));
-      });
-    };
-    load();
-    const timer = setInterval(load, 10 * 60 * 1000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, [cards]);
 
   return (
     <View style={styles.root}>
@@ -108,7 +90,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <ProjectCard
               project={item}
-              covers={covers[item.id]}
+              covers={item.previewUrls}
               onPress={() =>
                 router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
               }

@@ -72,6 +72,7 @@ type Props = {
   author?: string;
   authorAvatarUrl?: string | null;
   onDelete?: (photo: ViewerPhoto) => void;
+  onDetail?: (photo: ViewerPhoto) => void;
   loading?: ReactNode;
   empty?: ReactNode;
   header?: ReactNode | ((progress: SharedValue<number>) => ReactNode);
@@ -99,6 +100,7 @@ export function GalleryScreen({
   author,
   authorAvatarUrl,
   onDelete,
+  onDetail,
   loading,
   empty,
   header,
@@ -207,6 +209,7 @@ export function GalleryScreen({
         author={author}
         authorAvatarUrl={authorAvatarUrl}
         onDelete={onDelete}
+        onDetail={onDetail}
       />
     </View>
   );

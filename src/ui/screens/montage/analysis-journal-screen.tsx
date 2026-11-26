@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages, watchAnalysisJobs } from '@/functionality';
-import { itemSource, montageItems, montageRunning } from '@/models';
+import { itemThumb, montageItems, montageRunning } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { AnalysisRow } from '@/ui/components/media/analysis-row';
 import { analysisStatus } from '@/ui/components/media/analysis-status';
@@ -55,7 +55,7 @@ export default function AnalysisJournalScreen() {
               return (
                 <AnalysisRow
                   key={item.id}
-                  source={itemSource(item)}
+                  source={itemThumb(item)}
                   group={item.projectId}
                   analysis={item.analysis ?? job?.analysis ?? null}
                   status={job ? analysisStatus(job) : t('montage.journal.noDescription')}

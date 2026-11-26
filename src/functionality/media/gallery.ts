@@ -1,7 +1,7 @@
 import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import {
-  downloadLinks as apiDownloadLinks,
+  itemLinks as apiItemLinks,
   updateMedia as apiUpdateMedia,
   deleteMedia,
   getItem,
@@ -238,7 +238,12 @@ export async function downloadItems(
   projectId: ProjectId,
   itemIds: ProjectItemId[],
 ): Promise<DownloadLink[]> {
-  return apiDownloadLinks(requireToken(), projectId, itemIds);
+  const links = await apiItemLinks(
+    requireToken(),
+    projectId,
+    itemIds.map((itemId) => ({ itemId, variant: 'original' as const })),
+  );
+  return links.map((link) => ({ itemId: link.itemId, url: link.url }));
 }
 
 export async function removeItem(projectId: ProjectId, itemId: ProjectItemId): Promise<void> {

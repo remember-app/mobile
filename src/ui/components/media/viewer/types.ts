@@ -5,7 +5,7 @@ export type ViewerPhoto = {
   projectId?: string | null;
   source: ImageSource | string | null;
   thumb?: ImageSource | string | null;
-  original?: string | null;
+  detail?: string | null;
   width?: number;
   height?: number;
   video?: boolean;

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { loadAnalysisJobs, loadGallery, watchAnalysisJobs } from '@/functionality';
-import { itemSource } from '@/models';
+import { itemThumb } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import { AnalysisRow } from '@/ui/components/media/analysis-row';
@@ -44,7 +44,7 @@ export default function AnalysisJobsScreen() {
             return (
               <AnalysisRow
                 key={job.itemId}
-                source={item ? itemSource(item) : null}
+                source={item ? itemThumb(item) : null}
                 group={item?.projectId}
                 analysis={job.analysis}
                 status={analysisStatus(job)}

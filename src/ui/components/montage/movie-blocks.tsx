@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { type Item, itemSource } from '@/models';
+import { type Item, itemThumb } from '@/models';
 import { duration } from '@/ui/format';
 import { BottomSheet } from '@/ui/kit/chrome/bottom-sheet';
 import { Card } from '@/ui/kit/primitives/card';
@@ -206,7 +206,7 @@ function Thumbnails({ items }: { items: Item[] }) {
   return (
     <View style={styles.thumbs}>
       {items.slice(0, 4).map((item) => {
-        const source = itemSource(item);
+        const source = itemThumb(item);
         return source ? (
           <Image
             key={item.id}

@@ -1,30 +1,38 @@
+import { File } from 'expo-file-system';
 import { Image } from 'expo-image';
 
 import { onSignOut } from '@/functionality/auth/session';
 import { cacheFolderUsage, clearCache as clearDataCache } from '@/integrations/files/cache';
 import {
-  cachedUrl,
   clearMediaCache,
   clearMediaGroup,
-  keepUrl,
   mediaCacheUsage,
 } from '@/integrations/files/media-cache';
 import { saveToPhone, shareFile } from '@/integrations/files/save';
 import type { Item } from '@/models';
 
-export const cachedOriginal = (item: Item): string | null =>
-  item.links.original ? cachedUrl(item.links.original, item.projectId) : null;
+import { cachedVariant, keepVariant } from './source';
 
-const keep = (url: string | null, item: Item): Promise<string | null> =>
-  url ? keepUrl(url, item.projectId) : Promise.resolve(null);
+export const cachedDetail = (item: Item): string | null => cachedVariant(item, 'detail');
 
-export const ensureOriginal = (item: Item): Promise<string | null> =>
-  keep(item.links.original, item);
+export const ensureDetail = (item: Item): Promise<string | null> => keepVariant(item, 'detail');
+
+const ensureOriginal = (item: Item): Promise<string | null> => keepVariant(item, 'original');
+
+function dropTemporary(uri: string): void {
+  try {
+    new File(uri).delete();
+  } catch {
+    // the temporary original is already gone
+  }
+}
 
 export async function saveItemToPhone(item: Item): Promise<boolean> {
   const local = await ensureOriginal(item);
   if (!local) return false;
-  return saveToPhone(local);
+  const saved = await saveToPhone(local);
+  dropTemporary(local);
+  return saved;
 }
 
 export async function saveItemsToPhone(items: Item[]): Promise<{ saved: number; failed: number }> {
@@ -41,6 +49,7 @@ export async function shareItem(item: Item): Promise<void> {
   const local = await ensureOriginal(item);
   if (!local) throw new Error('the original is not available');
   await shareFile(local);
+  dropTemporary(local);
 }
 
 export const cacheUsage = () => {

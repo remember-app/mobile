@@ -16,7 +16,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
 import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
-import { itemSource, montageItems } from '@/models';
+import { itemThumb, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { LoadError } from '@/ui/components/feedback/load-error';
 import {
@@ -111,7 +111,7 @@ export default function MovieScreen() {
   const video = movie.video;
   const settings = movie.montage?.manifest.preparationConfig ?? null;
   const chosen = movie.montage ? montageItems(movie.montage, gallery.items) : [];
-  const frameUrls = chosen.map(itemSource).filter((url): url is string => url !== null);
+  const frameUrls = chosen.map(itemThumb).filter((url): url is string => url !== null);
   const report = movie.montage?.manifest.directingInput?.mergedMontageData as
     | { music?: Track[] }
     | undefined;

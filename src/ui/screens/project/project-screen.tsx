@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  cachedOriginal,
-  ensureOriginal,
+  cachedDetail,
+  downloadItems,
+  keepVariant,
   loadGallery,
   loadItem,
   loadLabels,
@@ -19,6 +20,7 @@ import {
   localPreviewOf,
   nearDuplicateExtras,
   onUploaded,
+  previewLink,
   progressOf,
   refreshGalleryAll,
   refreshItem,
@@ -45,6 +47,7 @@ import { useGalleryViewer } from '@/ui/components/media/gallery-viewer';
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf } from '@/ui/components/media/photo-item';
+import { useViewerMedia } from '@/ui/components/media/use-viewer-media';
 import { ProjectHeader } from '@/ui/components/project/project-header';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
@@ -93,7 +96,7 @@ export default function ProjectScreen() {
   const [selecting, setSelecting] = useState(false);
   const [duplicatesOn, setDuplicatesOn] = useState(false);
   const { filters, setFilters } = useGalleryFilters();
-  const [originals, setOriginals] = useState<Record<string, string>>({});
+  const [details, setDetails] = useState<Record<string, string>>({});
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
 
@@ -128,10 +131,9 @@ export default function ProjectScreen() {
         ...tile,
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
-        viewerSource:
-          item.kind === 'photo' ? (item.links.compressed ?? item.links.original) : undefined,
-        original: item.kind === 'photo' ? (originals[item.id] ?? cachedOriginal(item)) : null,
-        playbackUrl: item.kind === 'video' ? (localPlaybackOf(item.id) ?? tile.playbackUrl) : null,
+        viewerSource: previewLink(item, 'middle') ?? previewLink(item, 'small'),
+        detail: item.kind === 'photo' ? (details[item.id] ?? cachedDetail(item)) : null,
+        playbackUrl: item.kind === 'video' ? (localPlaybackOf(item.id) ?? null) : null,
         selected: selecting ? selection.has(item.id) : undefined,
         author:
           filters.uploaderIds.length > 0
@@ -154,7 +156,7 @@ export default function ProjectScreen() {
         id,
         source: poster,
         preview: poster,
-        original: null,
+        detail: null,
         video: upload.kind === 'video',
         playbackUrl: upload.kind === 'video' ? upload.uri : null,
         note:
@@ -202,16 +204,7 @@ export default function ProjectScreen() {
     return entries
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [
-    filters,
-    gallery.items,
-    originals,
-    visibleItems,
-    labels.labels,
-    pending,
-    selecting,
-    selection,
-  ]);
+  }, [filters, gallery.items, details, visibleItems, labels.labels, pending, selecting, selection]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () =>
@@ -222,19 +215,15 @@ export default function ProjectScreen() {
     [photos],
   );
 
-  useEffect(() => {
-    const photo = open === null ? null : photos[open.index];
-    if (!photo || photo.video || photo.upload) return;
+  const resolvedViewerPhotos = useViewerMedia(viewerPhotos, open?.index);
+
+  const showDetail = (photo: { id: string }) => {
     const item = gallery.items.find((candidate) => candidate.id === photo.id);
-    if (item?.kind !== 'photo' || !item.links.original || originals[item.id]) return;
-    let live = true;
-    void ensureOriginal(item).then((local) => {
-      if (live && local) setOriginals((was) => ({ ...was, [item.id]: local }));
+    if (!item || item.kind !== 'photo') return;
+    void keepVariant(item, 'detail').then((local) => {
+      if (local) setDetails((was) => ({ ...was, [photo.id]: local }));
     });
-    return () => {
-      live = false;
-    };
-  }, [gallery.items, open, originals, photos]);
+  };
 
   if (!project && projects.status !== 'loading') {
     return <Missing title={t('project.title')} message={t('project.notFound')} />;
@@ -311,7 +300,11 @@ export default function ProjectScreen() {
       const [one] = items;
       if (one) await shareItem(one);
     } else {
-      const links = items.map((item) => item.links.original).filter((link) => link !== null);
+      const issued = await downloadItems(
+        projectId,
+        items.map((item) => item.id),
+      );
+      const links = issued.map((link) => link.url);
       if (links.length > 0) await shareText(links.join('\n'));
     }
     selection.clear();
@@ -328,7 +321,7 @@ export default function ProjectScreen() {
       <View style={styles.root}>
         <GalleryScreen
           photos={photos}
-          viewerPhotos={viewerPhotos}
+          viewerPhotos={resolvedViewerPhotos}
           viewer={open}
           onOpen={async (index, rect) => {
             const photo = photos[index];
@@ -425,6 +418,7 @@ export default function ProjectScreen() {
                   void removeItem(projectId, photo.id as ProjectItemId);
                 }
           }
+          onDetail={showDetail}
           info={mediaInfo}
           header={(chrome) => (
             <>

@@ -143,10 +143,7 @@ function schedule<T>(lane: Lane, priority: number, run: () => Promise<T>): Promi
 
 const downloading = new Map<string, Promise<string | null>>();
 
-function tracked(
-  key: string,
-  run: () => Promise<string | null>,
-): Promise<string | null> {
+function tracked(key: string, run: () => Promise<string | null>): Promise<string | null> {
   const running = downloading.get(key);
   if (running) return running;
   const promise = run().finally(() => downloading.delete(key));

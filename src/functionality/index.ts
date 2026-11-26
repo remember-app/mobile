@@ -77,23 +77,16 @@ export {
   updateLabel,
 } from './label/labels';
 export {
-  cachedOriginal,
+  cachedDetail,
   cacheUsage,
   clearCache,
   clearCacheGroups,
-  ensureOriginal,
+  ensureDetail,
   saveItemsToPhone,
   saveItemToPhone,
   shareItem,
 } from './media/cache';
 export { nearDuplicateExtras } from './media/duplicates';
-export {
-  cachedVariant,
-  forgetLinks,
-  keepVariant,
-  previewLink,
-  resolveLink,
-} from './media/source';
 export {
   clearGalleries,
   downloadItems,
@@ -114,6 +107,13 @@ export {
   updateItem,
   updateMediaInfo,
 } from './media/gallery';
+export {
+  cachedVariant,
+  forgetLinks,
+  keepVariant,
+  previewLink,
+  resolveLink,
+} from './media/source';
 export {
   createMontage,
   hydrateMontages,
@@ -144,7 +144,6 @@ export {
   subscribeNetwork,
 } from './network/network';
 export { type ConsumableShare, shareProjectConsumables } from './project/consumables';
-export { projectCoverFrames } from './project/cover';
 export {
   acceptInvite,
   checkInvite,

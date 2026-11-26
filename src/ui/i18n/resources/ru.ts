@@ -14,6 +14,7 @@ export const ru: typeof en = {
     cancel: 'Отмена',
     close: 'Закрыть',
     delete: 'Удалить',
+    detail: 'Детали',
     done: 'Готово',
     retry: 'Повторить',
     save: 'Сохранить',

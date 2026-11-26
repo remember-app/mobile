@@ -29,7 +29,7 @@ import {
   updateProject,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
-import { itemDate, itemSource, type MontageTemplate, songPool } from '@/models';
+import { itemDate, itemThumb, type MontageTemplate, songPool } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { FilterControl } from '@/ui/components/gallery/filter-control';
@@ -161,8 +161,7 @@ export default function NewMontageScreen() {
   const thumbnails = useMemo(
     () =>
       gallery.items.flatMap((item) => {
-        const source =
-          item.links.previews.middle ?? item.links.previews.small ?? item.links.original;
+        const source = itemThumb(item);
         return source ? [source] : [];
       }),
     [gallery.items],
@@ -248,7 +247,7 @@ export default function NewMontageScreen() {
     const required = chosen.filter((item) => draft.requiredItemIds.includes(item.id));
     const rest = chosen.filter((item) => !draft.requiredItemIds.includes(item.id));
     return [...required, ...rest].slice(0, 3).flatMap((item) => {
-      const uri = itemSource(item);
+      const uri = itemThumb(item);
       return uri ? [uri] : [];
     });
   }, [draft.includeItemIds, draft.requiredItemIds, shots]);

@@ -1,7 +1,7 @@
 import { onSignOut, requireToken } from '@/functionality/auth/session';
 import { itemLinks } from '@/integrations/api';
 import { cachedFile, keepFile } from '@/integrations/files/media-cache';
-import { type Item, type ItemLinkVariant, hasVariant } from '@/models';
+import { hasVariant, type Item, type ItemLinkVariant } from '@/models';
 
 type Link = { url: string; expiresAt: number };
 

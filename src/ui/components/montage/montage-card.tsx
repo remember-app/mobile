@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { loadGallery } from '@/functionality';
-import { itemSource, type Montage, type Movie, montageItems, montageStage } from '@/models';
+import { itemThumb, type Montage, type Movie, montageItems, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { MontageBackdrop } from '@/ui/components/montage/movie-blocks';
 import { useGallery } from '@/ui/hooks';
@@ -56,7 +56,7 @@ export function MontageCard({
   const failed = montage.status === 'failed';
   const poster = finished ? (movie?.posterUrl ?? null) : null;
   const frames = montageItems(montage, gallery.items)
-    .map(itemSource)
+    .map(itemThumb)
     .filter((source): source is string => Boolean(source));
 
   useEffect(() => {

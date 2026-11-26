@@ -92,6 +92,10 @@ export type Item = {
   createdAt: Date;
 };
 
+export function itemThumb(item: Item): string | null {
+  return item.links.middle ?? item.links.small;
+}
+
 export function hasVariant(item: Item, variant: ItemLinkVariant): boolean {
   if (variant === 'original') return true;
   if (variant === 'large') return item.variants.previews.large !== undefined;
