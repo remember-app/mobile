@@ -1,10 +1,11 @@
-"""Upload text metadata to App Store Connect without fastlane.
+"""Upload metadata and screenshots to App Store Connect without fastlane.
 
 Uses an App Store Connect API key from EAS-compatible secrets:
 ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY_B64 (base64 of the .p8).
 """
 
 import base64
+import hashlib
 import json
 import os
 import subprocess
@@ -17,7 +18,10 @@ from pathlib import Path
 
 API = "https://api.appstoreconnect.apple.com"
 BUNDLE_ID = "com.noxlabs.remember"
-METADATA = Path(__file__).resolve().parent.parent / "fastlane" / "metadata"
+ROOT = Path(__file__).resolve().parent.parent
+METADATA = ROOT / "fastlane" / "metadata"
+SCREENSHOTS = ROOT / "fastlane" / "screenshots"
+DISPLAY_TYPE = "APP_IPHONE_61"  # 1206x2622, iPhone with Dynamic Island (medium)
 
 
 def b64url(data: bytes) -> str:
@@ -76,6 +80,8 @@ def request(token: str, path: str, method: str = "GET", body=None):
     )
     try:
         with urllib.request.urlopen(req, timeout=20) as response:
+            if response.status == 204:
+                return None
             return json.load(response)
     except urllib.error.HTTPError as error:
         raise RuntimeError(f"{method} {path}: {error.code} {error.read().decode()[:400]}") from error
@@ -84,6 +90,79 @@ def request(token: str, path: str, method: str = "GET", body=None):
 def text(locale: str, name: str) -> str:
     path = METADATA / locale / f"{name}.txt"
     return path.read_text(encoding="utf-8").strip() if path.exists() else ""
+
+
+def upload_screenshots(token: str, localizations: list) -> None:
+    if not SCREENSHOTS.exists():
+        return
+    for localization in localizations["data"]:
+        locale = localization["attributes"]["locale"]
+        folder = SCREENSHOTS / locale
+        files = sorted(folder.glob("*.png")) if folder.exists() else []
+        if not files:
+            continue
+
+        sets = request(token, f"/v1/appStoreVersionLocalizations/{localization['id']}/appScreenshotSets")["data"]
+        found = next((one for one in sets if one["attributes"].get("screenshotDisplayType") == DISPLAY_TYPE), None)
+        if found is None:
+            created = request(token, "/v1/appScreenshotSets", method="POST", body={
+                "data": {
+                    "type": "appScreenshotSets",
+                    "attributes": {"screenshotDisplayType": DISPLAY_TYPE},
+                    "relationships": {
+                        "appStoreVersionLocalization": {
+                            "data": {"id": localization["id"], "type": "appStoreVersionLocalizations"}
+                        }
+                    },
+                }
+            })
+            set_id = created["data"]["id"]
+        else:
+            set_id = found["id"]
+
+        # Make the upload idempotent: drop previous screenshots in this set.
+        existing = request(token, f"/v1/appScreenshotSets/{set_id}/appScreenshots")["data"]
+        for screenshot in existing:
+            request(token, f"/v1/appScreenshots/{screenshot['id']}", method="DELETE")
+
+        for path in files:
+            blob = path.read_bytes()
+            reserved = request(token, "/v1/appScreenshots", method="POST", body={
+                "data": {
+                    "type": "appScreenshots",
+                    "attributes": {"fileSize": len(blob), "fileName": path.name},
+                    "relationships": {
+                        "appScreenshotSet": {"data": {"id": set_id, "type": "appScreenshotSets"}}
+                    },
+                }
+            })["data"]
+            for operation in reserved["attributes"]["uploadOperations"]:
+                offset = operation.get("offset", 0)
+                headers = {item["name"]: item["value"] for item in operation.get("requestHeaders", [])}
+                upload = urllib.request.Request(
+                    operation["url"],
+                    data=blob[offset:offset + operation["length"]],
+                    method=operation["method"],
+                    headers=headers,
+                )
+                with urllib.request.urlopen(upload, timeout=30):
+                    pass
+            request(
+                token,
+                f"/v1/appScreenshots/{reserved['id']}",
+                method="PATCH",
+                body={
+                    "data": {
+                        "type": "appScreenshots",
+                        "id": reserved["id"],
+                        "attributes": {
+                            "uploaded": True,
+                            "sourceFileChecksum": hashlib.md5(blob).hexdigest(),
+                        },
+                    }
+                },
+            )
+        print(f"uploaded {len(files)} screenshots for {locale}")
 
 
 def main() -> None:
@@ -124,6 +203,8 @@ def main() -> None:
             body={"data": {"id": localization["id"], "type": "appStoreVersionLocalizations", "attributes": attributes}},
         )
         print(f"updated {locale}: {', '.join(sorted(attributes))}")
+
+    upload_screenshots(token, localizations)
 
 
 if __name__ == "__main__":
