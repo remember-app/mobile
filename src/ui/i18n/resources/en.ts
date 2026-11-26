@@ -12,7 +12,6 @@ export const en = {
     cancel: 'Cancel',
     close: 'Close',
     delete: 'Delete',
-    detail: 'Details',
     done: 'Done',
     retry: 'Try again',
     save: 'Save',

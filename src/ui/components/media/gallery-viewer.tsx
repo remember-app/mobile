@@ -3,7 +3,6 @@ import type { SharedValue } from 'react-native-reanimated';
 
 import type { MeasureTile, Rect } from './photo-grid';
 import { PhotoViewer, type ViewerPhoto } from './photo-viewer';
-import { useViewerMedia } from './use-viewer-media';
 
 export type GalleryViewerState = { index: number; rect?: Rect };
 
@@ -40,7 +39,6 @@ type Props = {
   author?: string;
   authorAvatarUrl?: string | null;
   onDelete?: (photo: ViewerPhoto) => void;
-  onDetail?: (photo: ViewerPhoto) => void;
 };
 
 export function GalleryViewer({
@@ -57,13 +55,11 @@ export function GalleryViewer({
   author,
   authorAvatarUrl,
   onDelete,
-  onDetail,
 }: Props) {
-  const resolved = useViewerMedia(photos, viewer?.index);
   if (viewer === null) return null;
   return (
     <PhotoViewer
-      photos={resolved}
+      photos={photos}
       initialIndex={viewer.index}
       origin={viewer.rect}
       onClose={onClose}
@@ -77,7 +73,6 @@ export function GalleryViewer({
       author={author}
       authorAvatarUrl={authorAvatarUrl}
       onDelete={onDelete}
-      onDetail={onDetail}
     />
   );
 }

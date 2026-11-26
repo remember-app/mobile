@@ -14,7 +14,7 @@ export function tileOf(item: Item): Photo {
     projectId: item.projectId,
     source: itemThumb(item),
     preview: small ?? middle,
-    detail: null,
+    original: null,
     video: item.kind === 'video',
     playbackUrl: null,
     note:
@@ -35,7 +35,7 @@ export function viewerOf(item: Item): ViewerPhoto {
     projectId: item.projectId,
     source: middle ?? small,
     thumb: small ?? middle,
-    detail: null,
+    original: null,
     video: item.kind === 'video',
     playbackUrl: null,
     width: item.media.meta.dimensions?.width,

@@ -1,5 +1,5 @@
 import { setStatusBarHidden } from 'expo-status-bar';
-import { Circle, CircleCheck, Sparkles, Trash2 } from 'lucide-react-native';
+import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
 import {
   type ReactNode,
   useCallback,
@@ -57,7 +57,6 @@ type Props = {
   author?: string;
   authorAvatarUrl?: string | null;
   onDelete?: (photo: ViewerPhoto) => void;
-  onDetail?: (photo: ViewerPhoto) => void;
   selected?: boolean;
   onSelect?: () => void;
 };
@@ -79,7 +78,6 @@ export function PhotoViewer({
   author,
   authorAvatarUrl,
   onDelete,
-  onDetail,
   selected,
   onSelect,
 }: Props) {
@@ -200,37 +198,26 @@ export function PhotoViewer({
     if (index <= 2) loadMore.current?.();
   }, [index]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setHdIndex(index), 600);
+    return () => clearTimeout(timer);
+  }, [index]);
+
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
   useEffect(() => {
     if (!grows) return;
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      scheduleOnRN(setPhase, 'open');
-    };
     const frame = requestAnimationFrame(() => {
       progress.value = withTiming(
         1,
         { duration: 300, easing: Easing.out(Easing.cubic) },
         (done) => {
-          if (done) finish();
+          if (done) scheduleOnRN(setPhase, 'open');
         },
       );
     });
-    const fallback = setTimeout(finish, 500);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(fallback);
-    };
+    return () => cancelAnimationFrame(frame);
   }, [grows, progress]);
-
-  useEffect(() => {
-    if (grows || phase !== 'entering') return;
-    progress.value = 1;
-    setPhase('open');
-  }, [grows, phase, progress]);
 
   const targetLeft = origin?.x ?? 0;
   const targetTop = origin?.y ?? 0;
@@ -452,7 +439,7 @@ export function PhotoViewer({
                 ) : (
                   <Zoomable
                     source={photo.source}
-                    hd={at === hdIndex ? (photo.detail ?? null) : null}
+                    hd={at === hdIndex ? (photo.original ?? null) : null}
                     group={photo.projectId}
                     media={mediaSize(photo)}
                     width={width}
@@ -591,10 +578,7 @@ export function PhotoViewer({
           >
             <BackButton label={t('action.back')} size={44} onPress={leave} />
             <View
-              style={[
-                styles.hudWords,
-                { maxWidth: width - layout.hudSide * 2 - 132 - HUD_GAP * 2 },
-              ]}
+              style={[styles.hudWords, { maxWidth: width - layout.hudSide * 2 - 88 - HUD_GAP * 2 }]}
             >
               {currentPhoto?.capturedAt ? (
                 <View
@@ -615,18 +599,7 @@ export function PhotoViewer({
                 </View>
               ) : null}
             </View>
-            {currentPhoto && !currentPhoto.video && onDetail ? (
-              <IconButton
-                icon={Sparkles}
-                label={t('action.detail')}
-                tone="surface"
-                size={44}
-                onPress={() => {
-                  setHdIndex(index);
-                  onDetail(currentPhoto);
-                }}
-              />
-            ) : onDelete && currentPhoto ? (
+            {onDelete && currentPhoto ? (
               <IconButton
                 icon={Trash2}
                 label={t('action.delete')}

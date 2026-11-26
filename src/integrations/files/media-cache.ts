@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
+import { Image } from 'expo-image';
 
 export type MediaScope = 'avatars' | 'system' | 'music' | 'misc';
 type Lane = 'image' | 'video' | 'other';
@@ -248,6 +249,50 @@ export function keepUrl(
   const key = urlKey(url);
   if (!key) return Promise.resolve(null);
   return keepFile({ ...key, group, scope }, () => Promise.resolve(url));
+}
+
+const copying = new Map<string, Promise<string | null>>();
+
+export function keepLoaded(
+  url: string,
+  group: string | null,
+  scope: MediaScope = 'misc',
+): Promise<string | null> {
+  const key = urlKey(url);
+  if (!key) return Promise.resolve(null);
+  const file: MediaFile = { ...key, group, scope };
+  const known = cachedFile(file);
+  if (known) return Promise.resolve(known);
+  const cacheKey = `${cacheKeyOf(file)}:loaded`;
+  const running = copying.get(cacheKey);
+  if (running) return running;
+  const task = (async () => {
+    const target = fileOf(file);
+    const part = partOf(file);
+    if (!target || !part) return null;
+    try {
+      let source = await Image.getCachePathAsync(url);
+      if (!source) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        source = await Image.getCachePathAsync(url);
+      }
+      if (!source) return null;
+      folderReady(group, scope);
+      await new File(source).copy(part, { overwrite: true });
+      await part.move(target, { overwrite: true });
+      return target.uri;
+    } catch (error) {
+      console.warn(`displayed media ${file.id} could not be copied:`, error);
+      try {
+        part.delete();
+      } catch {
+        // the half-file was already gone
+      }
+      return null;
+    }
+  })().finally(() => copying.delete(cacheKey));
+  copying.set(cacheKey, task);
+  return task;
 }
 
 function sumFiles(directory: Directory): number {

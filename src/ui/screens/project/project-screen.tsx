@@ -28,6 +28,7 @@ import {
   removeItems,
   removeProjectUploads,
   removeUpload,
+  resolveLink,
   retryUpload,
   saveItemsToPhone,
   shareItem,
@@ -47,7 +48,6 @@ import { useGalleryViewer } from '@/ui/components/media/gallery-viewer';
 import { useMediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo } from '@/ui/components/media/photo-grid';
 import { tileOf } from '@/ui/components/media/photo-item';
-import { useViewerMedia } from '@/ui/components/media/use-viewer-media';
 import { ProjectHeader } from '@/ui/components/project/project-header';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
@@ -96,7 +96,8 @@ export default function ProjectScreen() {
   const [selecting, setSelecting] = useState(false);
   const [duplicatesOn, setDuplicatesOn] = useState(false);
   const { filters, setFilters } = useGalleryFilters();
-  const [details, setDetails] = useState<Record<string, string>>({});
+  const [originals, setOriginals] = useState<Record<string, string>>({});
+  const [playbacks, setPlaybacks] = useState<Record<string, string>>({});
   const selection = useGallerySelection<string>();
   const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
 
@@ -132,8 +133,9 @@ export default function ProjectScreen() {
         source: localPreviewOf(item.id) ?? tile.source,
         preview: localPreviewOf(item.id) ?? tile.preview,
         viewerSource: previewLink(item, 'middle') ?? previewLink(item, 'small'),
-        detail: item.kind === 'photo' ? (details[item.id] ?? cachedDetail(item)) : null,
-        playbackUrl: item.kind === 'video' ? (localPlaybackOf(item.id) ?? null) : null,
+        original: item.kind === 'photo' ? (originals[item.id] ?? cachedDetail(item)) : null,
+        playbackUrl:
+          item.kind === 'video' ? (localPlaybackOf(item.id) ?? playbacks[item.id]) : null,
         selected: selecting ? selection.has(item.id) : undefined,
         author:
           filters.uploaderIds.length > 0
@@ -156,7 +158,7 @@ export default function ProjectScreen() {
         id,
         source: poster,
         preview: poster,
-        detail: null,
+        original: null,
         video: upload.kind === 'video',
         playbackUrl: upload.kind === 'video' ? upload.uri : null,
         note:
@@ -204,7 +206,17 @@ export default function ProjectScreen() {
     return entries
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [filters, gallery.items, details, visibleItems, labels.labels, pending, selecting, selection]);
+  }, [
+    filters,
+    gallery.items,
+    originals,
+    playbacks,
+    visibleItems,
+    labels.labels,
+    pending,
+    selecting,
+    selection,
+  ]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () =>
@@ -215,15 +227,32 @@ export default function ProjectScreen() {
     [photos],
   );
 
-  const resolvedViewerPhotos = useViewerMedia(viewerPhotos, open?.index);
+  useEffect(() => {
+    let live = true;
+    for (const item of gallery.items) {
+      if (item.kind !== 'video' || playbacks[item.id] || localPlaybackOf(item.id)) continue;
+      void resolveLink(item, 'playback').then((url) => {
+        if (live && url) setPlaybacks((was) => ({ ...was, [item.id]: url }));
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [gallery.items]);
 
-  const showDetail = (photo: { id: string }) => {
+  useEffect(() => {
+    const photo = open === null ? null : photos[open.index];
+    if (!photo || photo.video || photo.upload) return;
     const item = gallery.items.find((candidate) => candidate.id === photo.id);
-    if (!item || item.kind !== 'photo') return;
+    if (!item || item.kind !== 'photo' || originals[item.id]) return;
+    let live = true;
     void keepVariant(item, 'detail').then((local) => {
-      if (local) setDetails((was) => ({ ...was, [photo.id]: local }));
+      if (live && local) setOriginals((was) => ({ ...was, [item.id]: local }));
     });
-  };
+    return () => {
+      live = false;
+    };
+  }, [gallery.items, open, originals, photos]);
 
   if (!project && projects.status !== 'loading') {
     return <Missing title={t('project.title')} message={t('project.notFound')} />;
@@ -321,7 +350,7 @@ export default function ProjectScreen() {
       <View style={styles.root}>
         <GalleryScreen
           photos={photos}
-          viewerPhotos={resolvedViewerPhotos}
+          viewerPhotos={viewerPhotos}
           viewer={open}
           onOpen={async (index, rect) => {
             const photo = photos[index];
@@ -418,7 +447,6 @@ export default function ProjectScreen() {
                   void removeItem(projectId, photo.id as ProjectItemId);
                 }
           }
-          onDetail={showDetail}
           info={mediaInfo}
           header={(chrome) => (
             <>

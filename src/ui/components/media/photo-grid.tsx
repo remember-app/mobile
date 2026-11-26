@@ -15,7 +15,7 @@ export type Photo = {
   source: ImageSource | string | null;
   viewerSource?: ImageSource | string | null;
   preview?: ImageSource | string | null;
-  detail?: string | null;
+  original?: string | null;
   video?: boolean;
   playbackUrl?: string | null;
   width?: number;
