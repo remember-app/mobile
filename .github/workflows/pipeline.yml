@@ -63,4 +63,5 @@ jobs:
           npx --yes eas-cli update \
             --channel ${{ inputs.contour == 'prod' && 'production' || 'testflight' }} \
             --environment ${{ inputs.contour == 'prod' && 'production' || 'preview' }} \
+            --message "CI EAS Update ${{ inputs.contour }}" \
             --non-interactive
