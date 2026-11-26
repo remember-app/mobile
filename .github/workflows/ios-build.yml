@@ -10,11 +10,15 @@ on:
         options: [testflight, production]
         default: testflight
   push:
-    tags: ['mobile-v*']
+    tags:
+      - 'mobile-testflight-*'
+      - 'mobile-v*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EAS_PROFILE: ${{ inputs.profile || (startsWith(github.ref, 'refs/tags/mobile-v') && 'production' || 'testflight') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,10 +29,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - name: build
-        run: npx --yes eas-cli build --profile ${{ inputs.profile || 'production' }} --platform ios --non-interactive
+        run: npx --yes eas-cli build --profile "$EAS_PROFILE" --platform ios --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       - name: submit
-        run: npx --yes eas-cli submit --profile ${{ inputs.profile || 'production' }} --platform ios --latest --non-interactive
+        run: npx --yes eas-cli submit --profile "$EAS_PROFILE" --platform ios --latest --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
