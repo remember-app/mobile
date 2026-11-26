@@ -19,7 +19,7 @@ platform :ios do
       api_key: key,
       app_identifier: "com.noxlabs.remember",
       skip_binary_upload: true,
-      skip_submission: true,
+      submit_for_review: false,
       force: true
     )
   end
