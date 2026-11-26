@@ -28,6 +28,7 @@ jobs:
     env:
       EXPO_PROFILE: ${{ inputs.contour == 'prod' && 'production' || 'testflight' }}
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_DEBUG: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
