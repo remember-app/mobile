@@ -24,6 +24,8 @@ export const en = {
     play: 'Play',
     pause: 'Pause',
     mute: 'Mute',
+    more: 'More',
+    original: 'Original',
     unmute: 'Unmute',
     removeDuplicates: 'Remove duplicates',
   },

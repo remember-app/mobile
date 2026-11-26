@@ -26,6 +26,8 @@ export const ru: typeof en = {
     play: 'Воспроизвести',
     pause: 'Пауза',
     mute: 'Выключить звук',
+    more: 'Ещё',
+    original: 'Оригинал',
     unmute: 'Включить звук',
     removeDuplicates: 'Убрать дубли',
   },

@@ -198,9 +198,12 @@ function trimCache(): void {
   }
 }
 
+type DownloadProgress = { bytesWritten: number; totalBytes: number };
+
 export function keepFile(
   file: MediaFile,
   resolveUrl: (fresh: boolean) => Promise<string | null>,
+  onProgress?: (progress: DownloadProgress) => void,
 ): Promise<string | null> {
   const key = cacheKeyOf(file);
   if (!key) return Promise.resolve(null);
@@ -221,6 +224,7 @@ export function keepFile(
           await File.downloadFileAsync(url, part, {
             idempotent: true,
             signal: controller.signal,
+            onProgress,
           });
           await part.move(target, { overwrite: true });
           trimCache();

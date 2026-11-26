@@ -30,9 +30,7 @@ function dropTemporary(uri: string): void {
 export async function saveItemToPhone(item: Item): Promise<boolean> {
   const local = await ensureOriginal(item);
   if (!local) return false;
-  const saved = await saveToPhone(local);
-  dropTemporary(local);
-  return saved;
+  return saveToPhone(local);
 }
 
 export async function saveItemsToPhone(items: Item[]): Promise<{ saved: number; failed: number }> {

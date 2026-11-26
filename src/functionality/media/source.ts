@@ -64,6 +64,7 @@ export function keepVariant(
   item: Item,
   variant: ItemLinkVariant,
   priority = 0,
+  onProgress?: (progress: { bytesWritten: number; totalBytes: number }) => void,
 ): Promise<string | null> {
   const id = mediaIdOf(item, variant);
   if (!id || !hasVariant(item, variant)) return Promise.resolve(null);
@@ -75,6 +76,7 @@ export function keepVariant(
       priority,
     },
     (fresh) => resolveLink(item, variant, fresh),
+    onProgress,
   );
 }
 

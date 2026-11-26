@@ -1,5 +1,5 @@
 import { setStatusBarHidden } from 'expo-status-bar';
-import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
+import { Check, Download, Ellipsis, ImageDown, Trash2 } from 'lucide-react-native';
 import {
   type ReactNode,
   useCallback,
@@ -24,7 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { cachedVariant, itemById, keepVariant } from '@/functionality';
+import { cachedVariant, itemById, keepVariant, saveItemToPhone } from '@/functionality';
 import { confirmAction } from '@/ui/confirm';
 import { fullDay, time } from '@/ui/format';
 import { BlurBar } from '@/ui/kit/chrome/blur-bar';
@@ -95,6 +95,9 @@ export function PhotoViewer({
   const shownCount = useRef(viewPhotos.length);
   const [hdIndex, setHdIndex] = useState(-1);
   const [details, setDetails] = useState<Record<string, string>>({});
+  const [originals, setOriginals] = useState<Record<string, string>>({});
+  const [originalProgress, setOriginalProgress] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
   const [scrolling, setScrolling] = useState(false);
@@ -129,10 +132,30 @@ export function PhotoViewer({
   const fromY = useSharedValue(0);
   const fromSX = useSharedValue(1);
   const fromSY = useSharedValue(1);
+  const menuAnim = useSharedValue(0);
+  const selectAnim = useSharedValue(selected === undefined ? 0 : 1);
+  const originalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setStatusBarHidden(!chrome || info || zoomed, 'fade');
   }, [chrome, info, zoomed]);
+
+  useEffect(() => {
+    menuAnim.value = withTiming(menuOpen ? 1 : 0, { duration: 180 });
+  }, [menuAnim, menuOpen]);
+
+  useEffect(() => {
+    selectAnim.value = withTiming(selected === undefined ? 0 : 1, { duration: 180 });
+  }, [selectAnim, selected]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+    setOriginalProgress(null);
+    if (originalTimer.current) clearTimeout(originalTimer.current);
+    return () => {
+      if (originalTimer.current) clearTimeout(originalTimer.current);
+    };
+  }, [currentPhoto?.id]);
 
   useEffect(() => {
     setSpeedMode(false);
@@ -204,20 +227,20 @@ export function PhotoViewer({
     const photo = viewPhotos[index];
     const timer = setTimeout(() => {
       setHdIndex(index);
-      if (!photo || photo.video || !photo.projectId) return;
+      if (!photo || photo.video || !photo.projectId || originals[photo.id]) return;
       const item = itemById(photo.projectId, photo.id);
       if (!item) return;
       const cached = cachedVariant(item, 'detail');
       if (cached) {
-        setDetails((was) => ({ ...was, [photo.id]: cached }));
+        if (!originals[photo.id]) setDetails((was) => ({ ...was, [photo.id]: cached }));
         return;
       }
       void keepVariant(item, 'detail').then((local) => {
-        if (local) setDetails((was) => ({ ...was, [photo.id]: local }));
+        if (local && !originals[photo.id]) setDetails((was) => ({ ...was, [photo.id]: local }));
       });
     }, 600);
     return () => clearTimeout(timer);
-  }, [index, viewPhotos]);
+  }, [index, originals, viewPhotos]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
@@ -326,6 +349,14 @@ export function PhotoViewer({
     const appear = Math.max(0, Math.min(1, (progress.value - 0.6) / 0.4));
     return { opacity: appear * barFade.value };
   });
+  const menuStyle = useAnimatedStyle(() => ({
+    opacity: menuAnim.value,
+    transform: [{ translateY: (1 - menuAnim.value) * -20 }],
+  }));
+  const selectStyle = useAnimatedStyle(() => ({
+    opacity: selectAnim.value,
+    transform: [{ translateX: (1 - selectAnim.value) * 20 }],
+  }));
   const stripStyle = useAnimatedStyle(() => {
     const appear = Math.max(0, Math.min(1, (progress.value - 0.6) / 0.4));
     const gone = Math.min(1, Math.max(0, (lift.value - 0.2) / 0.2));
@@ -383,6 +414,59 @@ export function PhotoViewer({
       transform: [{ translateX: left }, { translateY: top }, { scale }],
     };
   });
+
+  const activeItem = currentPhoto?.projectId
+    ? itemById(currentPhoto.projectId, currentPhoto.id)
+    : undefined;
+  const menuAvailable = Boolean(currentPhoto && (onDelete || activeItem));
+  const cachedOriginal = activeItem ? cachedVariant(activeItem, 'original') : null;
+  const originalLoaded = Boolean(currentPhoto && (originals[currentPhoto.id] ?? cachedOriginal));
+
+  const deleteCurrent = () => {
+    const photo = currentPhoto;
+    if (!photo || !onDelete) return;
+    setMenuOpen(false);
+    confirmAction({
+      confirm: t('action.delete'),
+      destructive: true,
+      onConfirm: () => onDelete(photo),
+    });
+  };
+
+  const saveCurrent = () => {
+    if (!activeItem) return;
+    setMenuOpen(false);
+    void saveItemToPhone(activeItem);
+  };
+
+  const toggleOriginal = () => {
+    const photo = currentPhoto;
+    if (!photo || !activeItem) return;
+    setMenuOpen(false);
+    if (originalLoaded) {
+      const local = originals[photo.id] ?? cachedOriginal;
+      if (!local) return;
+      if (originalTimer.current) clearTimeout(originalTimer.current);
+      originalTimer.current = setTimeout(() => {
+        setDetails((was) => ({ ...was, [photo.id]: local }));
+        setHdIndex(index);
+      }, 600);
+      return;
+    }
+    setOriginalProgress(0);
+    void keepVariant(activeItem, 'original', 0, ({ bytesWritten, totalBytes }) => {
+      setOriginalProgress(totalBytes > 0 ? Math.min(1, bytesWritten / totalBytes) : 0.1);
+    }).then((local) => {
+      setOriginalProgress(null);
+      if (!local) return;
+      setOriginals((was) => ({ ...was, [photo.id]: local }));
+      if (originalTimer.current) clearTimeout(originalTimer.current);
+      originalTimer.current = setTimeout(() => {
+        setDetails((was) => ({ ...was, [photo.id]: local }));
+        setHdIndex(index);
+      }, 600);
+    });
+  };
 
   const busy = phase !== 'open';
 
@@ -615,33 +699,84 @@ export function PhotoViewer({
                 </View>
               ) : null}
             </View>
-            {onDelete && currentPhoto ? (
-              <IconButton
-                icon={Trash2}
-                label={t('action.delete')}
-                tone="surface"
-                size={44}
-                onPress={() =>
-                  confirmAction({
-                    confirm: t('action.delete'),
-                    destructive: true,
-                    onConfirm: () => onDelete(currentPhoto),
-                  })
-                }
-              />
-            ) : onSelect ? (
-              <IconButton
-                icon={selected ? CircleCheck : Circle}
-                label={t('project.select')}
-                tone="surface"
-                size={44}
-                on={selected}
-                onPress={onSelect}
-              />
-            ) : (
-              <View style={styles.hudSide} />
-            )}
+            <View style={styles.hudRight}>
+              {selected !== undefined && onSelect ? (
+                <Animated.View style={selectStyle}>
+                  <IconButton
+                    icon={Check}
+                    label={t('project.select')}
+                    tone="surface"
+                    size={44}
+                    on={selected}
+                    onPress={onSelect}
+                  />
+                </Animated.View>
+              ) : null}
+              {menuAvailable ? (
+                <IconButton
+                  icon={Ellipsis}
+                  label={t('action.more')}
+                  tone="surface"
+                  size={44}
+                  on={menuOpen}
+                  onPress={() => setMenuOpen((was) => !was)}
+                />
+              ) : (
+                <View style={styles.hudSide} />
+              )}
+            </View>
           </BlurBar>
+          {menuOpen && currentPhoto ? (
+            <Animated.View
+              pointerEvents="box-none"
+              style={[styles.menu, { top: layout.hudTop + 52, right: layout.hudSide }, menuStyle]}
+            >
+              {onDelete ? (
+                <IconButton
+                  icon={Trash2}
+                  label={t('action.delete')}
+                  tone="surface"
+                  size={44}
+                  onPress={deleteCurrent}
+                />
+              ) : null}
+              {activeItem ? (
+                <IconButton
+                  icon={Download}
+                  label={t('action.save')}
+                  tone="surface"
+                  size={44}
+                  onPress={saveCurrent}
+                />
+              ) : null}
+              {activeItem ? (
+                originalProgress === null ? (
+                  <IconButton
+                    icon={originalLoaded ? ImageDown : Download}
+                    label={t('action.original')}
+                    tone="surface"
+                    size={44}
+                    on={originalLoaded}
+                    onPress={toggleOriginal}
+                  />
+                ) : (
+                  <View style={[styles.progressRound, { backgroundColor: theme.color.surface }]}>
+                    <View style={[styles.progressTrack, { backgroundColor: theme.color.line }]}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: 28 * Math.max(0.05, originalProgress),
+                            backgroundColor: theme.color.accent,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                )
+              ) : null}
+            </Animated.View>
+          ) : null}
         </Animated.View>
       ) : null}
     </View>
@@ -701,6 +836,34 @@ const styles = StyleSheet.create({
   },
   hudSide: {
     width: 44,
+  },
+  hudRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  menu: {
+    position: 'absolute',
+    alignItems: 'flex-end',
+    gap: space.s2,
+    zIndex: 6,
+  },
+  progressRound: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressTrack: {
+    width: 28,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 4,
+    borderRadius: 2,
   },
   square: {
     position: 'absolute',
